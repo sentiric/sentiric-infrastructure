@@ -55,7 +55,7 @@ services:
     container_name: sentiric_sip_signaling
     build:
       context: ../sentiric-sip-signaling-service
-    # YENİ EKLENEN BÖLÜM: .env dosyasını konteynere bağlıyoruz
+    # YENİ EKLENDİ: Servisin kendi .env dosyasını okumasını sağlar.
     env_file:
       - ../sentiric-sip-signaling-service/.env
     networks:
@@ -63,9 +63,10 @@ services:
     ports:
       - "${SIP_PORT}:${SIP_PORT}/udp"
     environment:
+      # Bu değişken docker-compose'un kendi .env dosyasından gelir.
       - SIP_PORT=${SIP_PORT}
     restart: always
-    # Bu servis, diğer iki servisin başlamasını beklesin.
+    # YENİ EKLENDİ: Bu servis, diğer iki servisin başlamasını bekler.
     depends_on:
       - user-service
       - dialplan-service
