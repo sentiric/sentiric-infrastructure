@@ -10,7 +10,6 @@ volumes:
   rabbitmq_data:
 
 services:
-  # ... (servislerin geri kalanı aynı kalacak)
   postgres:
     image: postgres:16-alpine
     container_name: sentiric_postgres
@@ -50,4 +49,22 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    restart: always
+
+  # YENİ EKLENEN SERVİS
+  sip-signaling:
+    container_name: sentiric_sip_signaling
+    # Dockerfile'ın bulunduğu klasörün yolunu belirtiyoruz.
+    # Bu docker-compose.yml dosyası ile sentiric-sip-signaling-service klasörünün
+    # aynı seviyede (kardeş klasörler) olduğunu varsayar.
+    build:
+      context: ../sentiric-sip-signaling-service
+    networks:
+      - sentiric-net
+    ports:
+      # Dışarıdan gelen SIP trafiği için UDP 5060 portunu map'liyoruz.
+      - "${SIP_PORT}:${SIP_PORT}/udp"
+    environment:
+      # Konteyner içindeki uygulamanın hangi portu dinleyeceğini belirtiyoruz.
+      - SIP_PORT=${SIP_PORT}
     restart: always
