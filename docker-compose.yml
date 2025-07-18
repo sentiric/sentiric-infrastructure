@@ -1,0 +1,62 @@
+# sentiric-infrastructure/docker-compose.yml
+
+version: '3.8'
+
+# Tüm servislerin iletişim kuracağı ortak ağı tanımlıyoruz.
+networks:
+  sentiric-net:
+    driver: bridge
+
+# Verilerin kalıcı olmasını sağlayan disk alanlarını (volume) tanımlıyoruz.
+# Bu sayede konteynerler silinse bile verilerimiz kaybolmaz.
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+services:
+  # PostgreSQL: Kalıcı verilerimiz için (kullanıcılar, çağrı kayıtları vb.)
+  postgres:
+    image: postgres:16-alpine  # Hafif bir imaj kullanıyoruz.
+    container_name: sentiric_postgres
+    environment:
+      # Bu değerler .env dosyasından okunacak.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentiric-net
+    ports:
+      - "5432:5432" # Gerekirse dışarıdan erişim için
+    restart: always # Sunucu yeniden başlarsa otomatik olarak çalışsın.
+
+  # Redis: Anlık veriler, önbellek ve çağrı durumları için
+  redis:
+    image: redis:7-alpine # Hafif bir imaj kullanıyoruz.
+    container_name: sentiric_redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - sentiric-net
+    ports:
+      - "6379:6379" # Gerekirse dışarıdan erişim için
+    restart: always
+
+  # RabbitMQ: Servisler arası asenkron iletişim ve olay kuyruğu için
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine # Yönetim arayüzlü ve hafif imaj.
+    container_name: sentiric_rabbitmq
+    environment:
+      # Bu değerler .env dosyasından okunacak.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    networks:
+      - sentiric-net
+    ports:
+      - "5672:5672"  # Servislerin iletişim portu
+      - "15672:15672" # Yönetim paneli web arayüzü
+    restart: always
