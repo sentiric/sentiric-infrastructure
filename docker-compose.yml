@@ -51,7 +51,6 @@ services:
       - "15672:15672"
     restart: always
 
-  # YENİ EKLENEN SERVİS
   sip-signaling:
     container_name: sentiric_sip_signaling
     # Dockerfile'ın bulunduğu klasörün yolunu belirtiyoruz.
@@ -67,4 +66,27 @@ services:
     environment:
       # Konteyner içindeki uygulamanın hangi portu dinleyeceğini belirtiyoruz.
       - SIP_PORT=${SIP_PORT}
+    restart: always
+
+  user-service:
+    container_name: sentiric_user_service
+    build:
+      context: ../sentiric-user-service
+    networks:
+      - sentiric-net
+    # Bu servisin dış dünyaya açılmasına gerek yok, sadece diğer servisler erişecek.
+    # ports:
+    #   - "3001:3001"
+    environment:
+      - PORT=3001
+    restart: always
+
+  dialplan-service:
+    container_name: sentiric_dialplan_service
+    build:
+      context: ../sentiric-dialplan-service
+    networks:
+      - sentiric-net
+    environment:
+      - PORT=3002
     restart: always
