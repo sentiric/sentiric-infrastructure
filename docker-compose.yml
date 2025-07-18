@@ -1,26 +1,20 @@
 # sentiric-infrastructure/docker-compose.yml
 
-version: '3.8'
-
-# Tüm servislerin iletişim kuracağı ortak ağı tanımlıyoruz.
 networks:
   sentiric-net:
     driver: bridge
 
-# Verilerin kalıcı olmasını sağlayan disk alanlarını (volume) tanımlıyoruz.
-# Bu sayede konteynerler silinse bile verilerimiz kaybolmaz.
 volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
 
 services:
-  # PostgreSQL: Kalıcı verilerimiz için (kullanıcılar, çağrı kayıtları vb.)
+  # ... (servislerin geri kalanı aynı kalacak)
   postgres:
-    image: postgres:16-alpine  # Hafif bir imaj kullanıyoruz.
+    image: postgres:16-alpine
     container_name: sentiric_postgres
     environment:
-      # Bu değerler .env dosyasından okunacak.
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -29,27 +23,24 @@ services:
     networks:
       - sentiric-net
     ports:
-      - "5432:5432" # Gerekirse dışarıdan erişim için
-    restart: always # Sunucu yeniden başlarsa otomatik olarak çalışsın.
+      - "5432:5432"
+    restart: always
 
-  # Redis: Anlık veriler, önbellek ve çağrı durumları için
   redis:
-    image: redis:7-alpine # Hafif bir imaj kullanıyoruz.
+    image: redis:7-alpine
     container_name: sentiric_redis
     volumes:
       - redis_data:/data
     networks:
       - sentiric-net
     ports:
-      - "6379:6379" # Gerekirse dışarıdan erişim için
+      - "6379:6379"
     restart: always
 
-  # RabbitMQ: Servisler arası asenkron iletişim ve olay kuyruğu için
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine # Yönetim arayüzlü ve hafif imaj.
+    image: rabbitmq:3.13-management-alpine
     container_name: sentiric_rabbitmq
     environment:
-      # Bu değerler .env dosyasından okunacak.
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     volumes:
@@ -57,6 +48,6 @@ services:
     networks:
       - sentiric-net
     ports:
-      - "5672:5672"  # Servislerin iletişim portu
-      - "15672:15672" # Yönetim paneli web arayüzü
+      - "5672:5672"
+      - "15672:15672"
     restart: always
