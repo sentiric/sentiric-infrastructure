@@ -53,20 +53,22 @@ services:
 
   sip-signaling:
     container_name: sentiric_sip_signaling
-    # Dockerfile'ın bulunduğu klasörün yolunu belirtiyoruz.
-    # Bu docker-compose.yml dosyası ile sentiric-sip-signaling-service klasörünün
-    # aynı seviyede (kardeş klasörler) olduğunu varsayar.
     build:
       context: ../sentiric-sip-signaling-service
+    # YENİ EKLENEN BÖLÜM: .env dosyasını konteynere bağlıyoruz
+    env_file:
+      - ../sentiric-sip-signaling-service/.env
     networks:
       - sentiric-net
     ports:
-      # Dışarıdan gelen SIP trafiği için UDP 5060 portunu map'liyoruz.
       - "${SIP_PORT}:${SIP_PORT}/udp"
     environment:
-      # Konteyner içindeki uygulamanın hangi portu dinleyeceğini belirtiyoruz.
       - SIP_PORT=${SIP_PORT}
     restart: always
+    # Bu servis, diğer iki servisin başlamasını beklesin.
+    depends_on:
+      - user-service
+      - dialplan-service
 
   user-service:
     container_name: sentiric_user_service
