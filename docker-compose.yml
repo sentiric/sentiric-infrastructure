@@ -66,8 +66,9 @@ services:
 
   user-service:
     container_name: sentiric_user_service
-    build:
-      context: ../sentiric-user-service
+    # build:
+    #   context: ../sentiric-user-service
+    image: ghcr.io/sentiric/sentiric-user-service:latest
     networks:
       - sentiric-net
     environment:
@@ -78,8 +79,9 @@ services:
 
   dialplan-service:
     container_name: sentiric_dialplan_service
-    build:
-      context: ../sentiric-dialplan-service
+    # build:
+    #   context: ../sentiric-dialplan-service
+    image: ghcr.io/sentiric/sentiric-dialplan-service:latest    
     networks:
       - sentiric-net
     environment:
@@ -88,10 +90,8 @@ services:
 
   media-service:
     container_name: sentiric_media_service
-    # BU SATIR SİLİNECEK:
     # build:
     #  context: ../sentiric-media-service
-    # YERİNE BU GELECEK:
     image: ghcr.io/sentiric/sentiric-media-service:latest
     networks:
       - sentiric-net
@@ -106,8 +106,9 @@ services:
 
   agent-service:
     container_name: sentiric_agent_service
-    build:
-      context: ../sentiric-agent-service
+    # build:
+    #   context: ../sentiric-agent-service
+    image: ghcr.io/sentiric/sentiric-agent-service:latest    
     env_file:
       - ../sentiric-agent-service/.env
     networks:
@@ -126,8 +127,9 @@ services:
 
   sip-signaling:
     container_name: sentiric_sip_signaling
-    build:
-      context: ../sentiric-sip-signaling-service
+    # build:
+    #   context: ../sentiric-sip-signaling-service
+    image: ghcr.io/sentiric/sentiric-sip-signaling-service:latest
     env_file:
       - ../sentiric-sip-signaling-service/.env
     networks:
