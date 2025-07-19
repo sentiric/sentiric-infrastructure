@@ -8,7 +8,7 @@ volumes:
   rabbitmq_data:
 
 services:
-  # --- KATMAN 1: Temel Altyapı Servisleri (Önce bunlar sağlıklı olmalı) ---
+  # --- KATMAN 1: Temel Altyapı Servisleri ---
   postgres:
     image: postgres:16-alpine
     container_name: sentiric_postgres
@@ -23,11 +23,17 @@ services:
     ports:
       - "5432:5432"
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50' # CPU'nun yarısını kullanabilir
+          memory: 256M # Maksimum 256MB RAM
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
+      start_period: 45s
 
   redis:
     image: redis:7-alpine
@@ -39,11 +45,17 @@ services:
     ports:
       - "6379:6379"
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -59,11 +71,17 @@ services:
       - "5672:5672"
       - "15672:15672"
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
   # --- KATMAN 2: Bağımsız Uygulama Servisleri ---
   user-service:
@@ -74,9 +92,14 @@ services:
     environment:
       - PORT=3001
     restart: always
-    # Henüz healthcheck'i yok, bu yüzden sadece altyapının başlamasını beklesin.
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   dialplan-service:
     container_name: sentiric_dialplan_service
@@ -86,8 +109,14 @@ services:
     environment:
       - PORT=3002
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   media-service:
     container_name: sentiric_media_service
@@ -102,8 +131,13 @@ services:
       - RTP_PORT_MIN=10000
       - RTP_PORT_MAX=10100
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
 
-  # --- KATMAN 3: Akıllı Servisler (RabbitMQ sağlıklı olunca başlar) ---
+  # --- KATMAN 3: Akıllı Servisler ---
   agent-service:
     container_name: sentiric_agent_service
     image: ghcr.io/sentiric/sentiric-agent-service:latest
@@ -112,18 +146,16 @@ services:
     networks:
       - sentiric-net
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
     depends_on:
       rabbitmq:
         condition: service_healthy
-    healthcheck:
-      # Kendi Python script'imizi çalıştırıyoruz.
-      test: ["CMD", "python", "healthcheck.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
-  # --- KATMAN 4: Dış Dünya Kapısı (Her şey sağlıklı olunca başlar) ---
+  # --- KATMAN 4: Dış Dünya Kapısı ---
   sip-signaling:
     container_name: sentiric_sip_signaling
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:latest
@@ -136,12 +168,13 @@ services:
     environment:
       - SIP_PORT=${SIP_PORT}
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
     depends_on:
-      agent-service:
-        condition: service_healthy
-      user-service:
-        condition: service_started
-      dialplan-service:
-        condition: service_started
-      media-service:
-        condition: service_started
+      - agent-service
+      - user-service
+      - dialplan-service
+      - media-service
