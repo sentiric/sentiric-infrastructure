@@ -8,6 +8,7 @@ volumes:
   rabbitmq_data:
 
 services:
+  # --- KATMAN 1: Temel Altyapı Servisleri (Önce bunlar sağlıklı olmalı) ---
   postgres:
     image: postgres:16-alpine
     container_name: sentiric_postgres
@@ -64,34 +65,32 @@ services:
       timeout: 10s
       retries: 5
 
+  # --- KATMAN 2: Bağımsız Uygulama Servisleri ---
   user-service:
     container_name: sentiric_user_service
-    # build:
-    #   context: ../sentiric-user-service
     image: ghcr.io/sentiric/sentiric-user-service:latest
     networks:
       - sentiric-net
     environment:
       - PORT=3001
     restart: always
-    # Express servisleri için healthcheck eklenmedi çünkü henüz /health endpoint'leri yok.
-    # Onları da eklediğimizde buraya healthcheck'lerini koyacağız.
+    # Henüz healthcheck'i yok, bu yüzden sadece altyapının başlamasını beklesin.
+    depends_on:
+      - postgres
 
   dialplan-service:
     container_name: sentiric_dialplan_service
-    # build:
-    #   context: ../sentiric-dialplan-service
-    image: ghcr.io/sentiric/sentiric-dialplan-service:latest    
+    image: ghcr.io/sentiric/sentiric-dialplan-service:latest
     networks:
       - sentiric-net
     environment:
       - PORT=3002
     restart: always
+    depends_on:
+      - postgres
 
   media-service:
     container_name: sentiric_media_service
-    # build:
-    #  context: ../sentiric-media-service
     image: ghcr.io/sentiric/sentiric-media-service:latest
     networks:
       - sentiric-net
@@ -104,11 +103,10 @@ services:
       - RTP_PORT_MAX=10100
     restart: always
 
+  # --- KATMAN 3: Akıllı Servisler (RabbitMQ sağlıklı olunca başlar) ---
   agent-service:
     container_name: sentiric_agent_service
-    # build:
-    #   context: ../sentiric-agent-service
-    image: ghcr.io/sentiric/sentiric-agent-service:latest    
+    image: ghcr.io/sentiric/sentiric-agent-service:latest
     env_file:
       - ../sentiric-agent-service/.env
     networks:
@@ -116,19 +114,18 @@ services:
     restart: always
     depends_on:
       rabbitmq:
-        condition: service_healthy # RabbitMQ "healthy" olana kadar bekle.
+        condition: service_healthy
     healthcheck:
-      # FastAPI sunucusunun /health endpoint'ini test et.
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Kendi Python script'imizi çalıştırıyoruz.
+      test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s # Konteynerin başlaması için 15 saniye bekle.
+      start_period: 20s
 
+  # --- KATMAN 4: Dış Dünya Kapısı (Her şey sağlıklı olunca başlar) ---
   sip-signaling:
     container_name: sentiric_sip_signaling
-    # build:
-    #   context: ../sentiric-sip-signaling-service
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:latest
     env_file:
       - ../sentiric-sip-signaling-service/.env
@@ -140,10 +137,11 @@ services:
       - SIP_PORT=${SIP_PORT}
     restart: always
     depends_on:
-      # Artık bu servislerin sadece başlamasını değil, "sağlıklı" olmasını bekleyebiliriz.
-      # Ancak Express servislerinde henüz healthcheck olmadığı için bu şimdilik devre dışı.
-      - user-service
-      - dialplan-service
-      - media-service
-      - rabbitmq
-      - agent-service # Agent'ın da sağlıklı olmasını bekleyebiliriz.
+      agent-service:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      dialplan-service:
+        condition: service_started
+      media-service:
+        condition: service_started
