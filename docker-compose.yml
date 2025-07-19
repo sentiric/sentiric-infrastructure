@@ -88,8 +88,11 @@ services:
 
   media-service:
     container_name: sentiric_media_service
-    build:
-      context: ../sentiric-media-service
+    # BU SATIR SİLİNECEK:
+    # build:
+    #  context: ../sentiric-media-service
+    # YERİNE BU GELECEK:
+    image: ghcr.io/sentiric/sentiric-media-service:latest
     networks:
       - sentiric-net
     ports:
