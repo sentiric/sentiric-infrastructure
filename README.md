@@ -41,3 +41,34 @@ Sunucu ilk kurulumu tamamlandıktan ve sunucuya yeniden bağlandıktan sonra, al
     ```bash
     docker compose down
     ```
+
+## 3. Sistemi Sıfırlama (Reset)
+
+Geliştirme sırasında, her şeyi temiz bir duruma getirmek veya olası build cache sorunlarını çözmek için aşağıdaki script'i kullanabilirsiniz.
+
+**DİKKAT:** Bu script, projemizin konteynerlerine ek olarak, makinenizdeki durdurulmuş diğer tüm konteynerleri ve kullanılmayan Docker imajlarını da silecektir.
+
+```bash
+# Script'i çalıştırılabilir yap (sadece ilk seferde)
+chmod +x reset.sh
+
+# Docker ortamını sıfırla
+./reset.sh
+```
+Bu işlemden sonra, `./start.sh` komutu ile sistemi sıfırdan, temiz bir şekilde kurabilirsiniz.
+
+---
+
+### **Özet ve Nihai İş Akışımız**
+
+Artık `sentiric-infrastructure` reposunda üç güçlü aracımız var:
+*   `setup.sh`: Boş bir sunucuyu Docker ile hazırlar.
+*   `reset.sh`: Geliştirme ortamını tamamen sıfırlar.
+*   `start.sh`: Sistemi katman katman, güvenli bir şekilde başlatır.
+
+**Yeni Standart Geliştirme Döngümüz:**
+1.  Bir sorunla karşılaştığında veya temiz bir başlangıç yapmak istediğinde: `./reset.sh`
+2.  Sistemi başlatmak için: `./start.sh`
+3.  Sadece logları görmek için: `docker compose logs -f [servis_adı]`
+4.  Sistemi durdurmak için: `docker compose down`
+
