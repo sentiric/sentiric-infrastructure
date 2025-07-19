@@ -22,6 +22,11 @@ services:
     ports:
       - "5432:5432"
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -33,6 +38,11 @@ services:
     ports:
       - "6379:6379"
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -48,24 +58,11 @@ services:
       - "5672:5672"
       - "15672:15672"
     restart: always
-
-  sip-signaling:
-    container_name: sentiric_sip_signaling
-    build:
-      context: ../sentiric-sip-signaling-service
-    env_file:
-      - ../sentiric-sip-signaling-service/.env
-    networks:
-      - sentiric-net
-    ports:
-      - "${SIP_PORT}:${SIP_PORT}/udp"
-    environment:
-      - SIP_PORT=${SIP_PORT}
-    restart: always
-    depends_on:
-      - user-service
-      - dialplan-service
-      - media-service # Yeni bağımlılık eklendi
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   user-service:
     container_name: sentiric_user_service
@@ -76,6 +73,8 @@ services:
     environment:
       - PORT=3001
     restart: always
+    # Express servisleri için healthcheck eklenmedi çünkü henüz /health endpoint'leri yok.
+    # Onları da eklediğimizde buraya healthcheck'lerini koyacağız.
 
   dialplan-service:
     container_name: sentiric_dialplan_service
@@ -101,3 +100,45 @@ services:
       - RTP_PORT_MIN=10000
       - RTP_PORT_MAX=10100
     restart: always
+
+  agent-service:
+    container_name: sentiric_agent_service
+    build:
+      context: ../sentiric-agent-service
+    env_file:
+      - ../sentiric-agent-service/.env
+    networks:
+      - sentiric-net
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy # RabbitMQ "healthy" olana kadar bekle.
+    healthcheck:
+      # FastAPI sunucusunun /health endpoint'ini test et.
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s # Konteynerin başlaması için 15 saniye bekle.
+
+  sip-signaling:
+    container_name: sentiric_sip_signaling
+    build:
+      context: ../sentiric-sip-signaling-service
+    env_file:
+      - ../sentiric-sip-signaling-service/.env
+    networks:
+      - sentiric-net
+    ports:
+      - "${SIP_PORT}:${SIP_PORT}/udp"
+    environment:
+      - SIP_PORT=${SIP_PORT}
+    restart: always
+    depends_on:
+      # Artık bu servislerin sadece başlamasını değil, "sağlıklı" olmasını bekleyebiliriz.
+      # Ancak Express servislerinde henüz healthcheck olmadığı için bu şimdilik devre dışı.
+      - user-service
+      - dialplan-service
+      - media-service
+      - rabbitmq
+      - agent-service # Agent'ın da sağlıklı olmasını bekleyebiliriz.
