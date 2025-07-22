@@ -1,180 +1,32 @@
+# ANA ORKESTRATÖR: Bu dosya tüm platformu bir araya getirir.
+version: '3.8'
+
+# Tüm servis tanımlarını kendi repolarından ve temel altyapı dosyasından içe aktar.
+include:
+  # Temel Altyapı Servisleri (Postgres, Redis, RabbitMQ)
+  - ./compose/base-services.yml
+
+  # Tüm Uygulama ve Ağ Geçidi Servisleri
+  - ../sentiric-agent-service/docker-compose.service.yml
+  - ../sentiric-api-gateway-service/docker-compose.service.yml
+  - ../sentiric-cdr-service/docker-compose.service.yml
+  - ../sentiric-connectors-service/docker-compose.service.yml
+  - ../sentiric-dashboard-ui/docker-compose.service.yml
+  - ../sentiric-dialplan-service/docker-compose.service.yml
+  - ../sentiric-knowledge-service/docker-compose.service.yml
+  - ../sentiric-marketplace-service/docker-compose.service.yml
+  - ../sentiric-media-service/docker-compose.service.yml
+  - ../sentiric-messaging-gateway-service/docker-compose.service.yml
+  - ../sentiric-sip-gateway-service/docker-compose.service.yml
+  - ../sentiric-sip-signaling-service/docker-compose.service.yml
+  - ../sentiric-stt-service/docker-compose.service.yml
+  - ../sentiric-task-service/docker-compose.service.yml
+  - ../sentiric-telephony-gateway-service/docker-compose.service.yml
+  - ../sentiric-tts-service/docker-compose.service.yml
+  - ../sentiric-user-service/docker-compose.service.yml
+  - ../sentiric-web-agent-ui/docker-compose.service.yml
+
 networks:
   sentiric-net:
+    name: sentiric-net
     driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
-  rabbitmq_data:
-
-services:
-  # --- KATMAN 1: Temel Altyapı Servisleri ---
-  postgres:
-    image: postgres:16-alpine
-    container_name: sentiric_postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - sentiric-net
-    ports:
-      - "5432:5432"
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50' # CPU'nun yarısını kullanabilir
-          memory: 256M # Maksimum 256MB RAM
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 45s
-
-  redis:
-    image: redis:7-alpine
-    container_name: sentiric_redis
-    volumes:
-      - redis_data:/data
-    networks:
-      - sentiric-net
-    ports:
-      - "6379:6379"
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: sentiric_rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq/
-    networks:
-      - sentiric-net
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # --- KATMAN 2: Bağımsız Uygulama Servisleri ---
-  user-service:
-    container_name: sentiric_user_service
-    image: ghcr.io/sentiric/sentiric-user-service:latest
-    networks:
-      - sentiric-net
-    environment:
-      - PORT=3001
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 64M
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  dialplan-service:
-    container_name: sentiric_dialplan_service
-    image: ghcr.io/sentiric/sentiric-dialplan-service:latest
-    networks:
-      - sentiric-net
-    environment:
-      - PORT=3002
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 64M
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  media-service:
-    container_name: sentiric_media_service
-    image: ghcr.io/sentiric/sentiric-media-service:latest
-    networks:
-      - sentiric-net
-    ports:
-      - "10000-10100:10000-10100/udp"
-    environment:
-      - PORT=3003
-      - PUBLIC_IP=${PUBLIC_IP}
-      - RTP_PORT_MIN=10000
-      - RTP_PORT_MAX=10100
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 128M
-
-  # --- KATMAN 3: Akıllı Servisler ---
-  agent-service:
-    container_name: sentiric_agent_service
-    image: ghcr.io/sentiric/sentiric-agent-service:latest
-    env_file:
-      - ../sentiric-agent-service/.env
-    networks:
-      - sentiric-net
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 128M
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  # --- KATMAN 4: Dış Dünya Kapısı ---
-  sip-signaling:
-    container_name: sentiric_sip_signaling
-    image: ghcr.io/sentiric/sentiric-sip-signaling-service:latest
-    env_file:
-      - ../sentiric-sip-signaling-service/.env
-    networks:
-      - sentiric-net
-    ports:
-      - "${SIP_PORT}:${SIP_PORT}/udp"
-    environment:
-      - SIP_PORT=${SIP_PORT}
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 64M
-    depends_on:
-      - agent-service
-      - user-service
-      - dialplan-service
-      - media-service

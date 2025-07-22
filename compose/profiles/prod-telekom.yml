@@ -1,0 +1,37 @@
+# Dosya Yolu: sentiric-infrastructure/compose/profiles/prod-telekom.yml
+
+# Bu profil, Telekom Ağ Geçidi Sunucusunda (örn: Statik IP'li Oracle Sunucusu) çalıştırılacaktır.
+version: '3.8'
+
+services:
+  # --- BU SUNUCUDA ÇALIŞACAK SERVİSLER ---
+  sip-signaling:
+    profiles: ["telekom"]
+  media-service:
+    profiles: ["telekom"]
+  
+  # İleride eklenebilecek diğer ağ geçitleri
+  # sip-gateway:
+  #   profiles: ["telekom"]
+  # messaging-gateway:
+  #   profiles: ["telekom"]
+
+  # --- BU SUNUCUDA ÇALIŞMAYACAK SERVİSLER (Devre Dışı Bırak) ---
+  postgres:
+    profiles: ["never"]
+  redis:
+    profiles: ["never"]
+  rabbitmq:
+    profiles: ["never"]
+  agent-service:
+    profiles: ["never"]
+  user-service:
+    profiles: ["never"]
+  dialplan-service:
+    profiles: ["never"]
+  # ... Diğer tüm uygulama/ai/veri servisleri için 'never' kuralı ...
+  stt-service: { profiles: ["never"] }
+  tts-service: { profiles: ["never"] }
+  knowledge-service: { profiles: ["never"] }
+  cdr-service: { profiles: ["never"] }
+  api-gateway: { profiles: ["never"] }

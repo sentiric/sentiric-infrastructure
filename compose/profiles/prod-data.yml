@@ -1,0 +1,40 @@
+# Dosya Yolu: sentiric-infrastructure/compose/profiles/prod-data.yml
+
+# Bu profil, Veri Katmanı Sunucusunda (örn: Google Cloud) çalıştırılacaktır.
+version: '3.8'
+
+services:
+  # --- BU SUNUCUDA ÇALIŞACAK SERVİSLER ---
+  postgres:
+    profiles: ["data"]
+  redis:
+    profiles: ["data"]
+  rabbitmq:
+    profiles: ["data"]
+
+  # --- BU SUNUCUDA ÇALIŞMAYACAK SERVİSLER (Devre Dışı Bırak) ---
+  sip-signaling:
+    profiles: ["never"]
+  media-service:
+    profiles: ["never"]
+  agent-service:
+    profiles: ["never"]
+  user-service:
+    profiles: ["never"]
+  dialplan-service:
+    profiles: ["never"]
+  api-gateway:
+    profiles: ["never"]
+  # ... Diğer tüm uygulama/ağ geçidi/ai servisleri için de aynı 'never' kuralı ...
+  stt-service: { profiles: ["never"] }
+  tts-service: { profiles: ["never"] }
+  knowledge-service: { profiles: ["never"] }
+  cdr-service: { profiles: ["never"] }
+  connectors-service: { profiles: ["never"] }
+  marketplace-service: { profiles: ["never"] }
+  messaging-gateway: { profiles: ["never"] }
+  sip-gateway: { profiles: ["never"] }
+  task-service: { profiles: ["never"] }
+  telephony-gateway: { profiles: ["never"] }
+  dashboard-ui: { profiles: ["never"] }
+  web-agent-ui: { profiles: ["never"] }

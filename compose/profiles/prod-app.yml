@@ -1,0 +1,44 @@
+# Dosya Yolu: sentiric-infrastructure/compose/profiles/prod-app.yml
+
+# Bu profil, Uygulama & AI Sunucusunda (örn: İkinci Oracle Sunucusu) çalıştırılacaktır.
+version: '3.8'
+
+services:
+  # --- BU SUNUCUDA ÇALIŞACAK SERVİSLER ---
+  agent-service:
+    profiles: ["app"]
+  user-service:
+    profiles: ["app"]
+  dialplan-service:
+    profiles: ["app"]
+  stt-service:
+    profiles: ["app"]
+  tts-service:
+    profiles: ["app"]
+  knowledge-service:
+    profiles: ["app"]
+  cdr-service:
+    profiles: ["app"]
+  connectors-service:
+    profiles: ["app"]
+  task-service:
+    profiles: ["app"]
+  api-gateway:
+    profiles: ["app"]
+  dashboard-ui:
+    profiles: ["app"]
+  web-agent-ui:
+    profiles: ["app"]
+  # ... Diğer tüm uygulama servisleri buraya 'app' profili ile eklenir ...
+
+  # --- BU SUNUCUDA ÇALIŞMAYACAK SERVİSLER (Devre Dışı Bırak) ---
+  postgres:
+    profiles: ["never"]
+  redis:
+    profiles: ["never"]
+  rabbitmq:
+    profiles: ["never"]
+  sip-signaling:
+    profiles: ["never"]
+  media-service:
+    profiles: ["never"]
