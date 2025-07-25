@@ -1,73 +1,144 @@
-# 🚀 Sentiric Infrastructure: Platform Orchestration Hub
+# 🚀 Sentiric Platform Orchestration Hub
 
-This repository is the **single source of truth** for orchestrating the entire Sentiric platform. It uses a unified Docker Compose file with profiles to manage all microservices for both **local development** and **multi-server production** environments.
+**Tek compose dosyasıyla tüm ortam yönetimi** - Yerel geliştirmeden çok sunuculu üretim ortamlarına kadar her senaryoyu destekler
 
----
+## 📌 Önemli Özellikler
+- **Tek bir compose dosyası** ile tüm servis yönetimi
+- **Profile tabanlı** dağıtım (data/app/telekom)
+- **Hem yerel hem de prod** ortam desteği
+- **Dinamik bağımlılık yönetimi** ile esnek yapı
+- **Otomatik deploy scriptleri** ile kolay dağıtım
 
-## 1. Local Development Setup (Recommended)
+## 📂 Dosya Yapısı
+```
+sentiric-infrastructure/
+├── docker-compose.yml          # Ana compose dosyası
+├── .env.local.example          # Yerel ortam örneği
+├── .env.prod.example           # Prod ortam örneği
+├── configs/
+│   ├── prod/                   # Gerçek prod configleri (gitignore)
+│   └── local/                  # Yerel configler (gitignore)
+└── scripts/
+    ├── deploy-local.sh         # Yerel ortam kurulumu
+    └── deploy-prod.sh          # Prod dağıtım scripti
+```
 
-This setup runs all necessary services on your local machine, tagged with the `default` profile.
+## 🛠️ Kurulum
 
-### Prerequisites
-- Docker and Docker Compose
+### 1. Önkoşullar
+- Docker 20.10+
+- Docker Compose 2.0+
 - Git
-- All Sentiric service repositories cloned into the same parent directory as this one.
 
-### Instructions
-1.  **Clone all repositories:**
-    Your workspace directory should look like this:
-    ```
-    /workspace/
-    ├── sentiric-infrastructure/  <-- You are here
-    ├── sentiric-agent-service/
-    └── ... and all other services
-    ```
+### 2. Tüm Repoları Klonla
+```bash
+git clone https://github.com/sentiric/sentiric-infrastructure.git
+git clone https://github.com/sentiric/sentiric-user-service.git
+# Diğer servis repolarını da klonlayın...
+```
 
-2.  **Configure your local environment:**
-    ```bash
-    cp .env.local.example .env
-    ```
-    Open `.env` and adjust `PUBLIC_IP` if needed for your local network setup.
+## 🖥️ Yerel Geliştirme
 
-3.  **Run the entire platform:**
-    This command will build all services and start the ones marked with the `default` profile.
-    ```bash
-    docker compose up --build -d
-    ```
+### 1. Ortamı Hazırla
+```bash
+cp .env.local.example configs/local/.env
+# .env dosyasını ihtiyacınıza göre düzenleyin
+```
 
-4.  **Check the status:**
-    ```bash
-    docker compose ps
-    ```
+### 2. Servisleri Başlat
+```bash
+# Tüm servisler (full stack)
+./scripts/deploy-local.sh
 
-5.  **Stop the platform:**
-    ```bash
-    docker compose down --volumes
-    ```
+# Veya belirli profillerle:
+docker compose --profile app up -d
+docker compose --profile telekom up -d
+```
 
----
+### 3. Servisleri Durdur
+```bash
+docker compose down
+```
 
-## 2. Production Deployment (Multi-Server Example)
+## ☁️ Üretim Dağıtımı
 
-This setup demonstrates how to deploy the platform across multiple servers using Docker Compose Profiles. You only need to clone this `infrastructure` repo and the relevant service repos on each server.
+### 1. Sunucuları Hazırla
+```bash
+# Örnek: Data sunucusuna kurulum
+./scripts/deploy-prod.sh data 192.168.1.100
 
-### Prerequisites
-- Each server must have Docker and Docker Compose installed.
-- Create a `.env` file on each server using `.env.prod.example` as a template, filling in the correct IP addresses for inter-server communication.
+# App sunucusu
+./scripts/deploy-prod.sh app 192.168.1.101
 
-### Instructions
+# Telekom sunucusu
+./scripts/deploy-prod.sh telekom 192.168.1.102
+```
 
-1.  **On the Data Server:**
-    ```bash
-    docker compose --profile data up --build -d
-    ```
+### 2. Ortam Yapılandırması
+Her sunucuda `configs/prod/` altındaki ilgili .env dosyasını düzenleyin:
+- `.env.data` - PostgreSQL, RabbitMQ ayarları
+- `.env.app` - Uygulama servisleri ayarları
+- `.env.telekom` - SIP/Media servis ayarları
 
-2.  **On the Telekom Gateway Server:**
-    ```bash
-    docker compose --profile telekom up --build -d
-    ```
+## 🌐 Servis Dağılımı
 
-3.  **On the Application & AI Server:**
-    ```bash
-    docker compose --profile app up --build -d
-    ```
+| Sunucu Tipi   | Servisler                          | Profile |
+|---------------|------------------------------------|---------|
+| **Data**      | PostgreSQL, RabbitMQ, Redis, MongoDB | data    |
+| **App**       | User, Dialplan, Agent, Analytics   | app     |
+| **Telekom**   | SIP Signaling, Media Service       | telekom |
+
+## 🔧 Ortak Komutlar
+
+```bash
+# Çalışan servisleri listele
+docker compose ps
+
+# Logları görüntüle
+docker compose logs -f [service_name]
+
+# Servisleri yeniden başlat
+docker compose restart [service_name]
+
+# Sistem durumunu kontrol et
+docker stats
+```
+
+## 🛡️ Güvenlik Önlemleri
+
+1. **.env dosyalarını asla Git'e eklemeyin**
+2. **Production ortamında:**
+   ```bash
+   # Şifre üretme
+   openssl rand -base64 32 | tee .db_password
+   ```
+3. **Firewall ayarları:**
+   ```bash
+   # Data sunucusunda
+   ufw allow from APP_SERVER_IP to any port 5432
+   ```
+
+## ⁉️ Sorun Giderme
+
+**Problem:** `service depends on undefined service` hatası  
+**Çözüm:** Bağımlılık servisinin profile'ını kontrol edin:
+```bash
+# Eksik profile'ı ekleyerek çalıştırın
+docker compose --profile data --profile app up -d
+```
+
+**Problem:** Port çakışmaları  
+**Çözüm:** `.env` dosyasında portları değiştirin:
+```env
+SIP_PORT=5070
+RTP_PORT_MIN=20000-20100
+```
+
+## 🤝 Katkı
+1. Repoyu fork edin
+2. Yeni branch açın (`feature/new-service`)
+3. Değişiklikleri test edin
+4. Pull Request gönderin
+
+## 📜 Lisans
+
