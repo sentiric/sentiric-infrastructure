@@ -109,19 +109,19 @@ services:
     profiles: ["app", "default"]
 
   # ==================== NEW SERVICES ====================
-  analytics-service:
-    build: ../sentiric-analytics-service
-    environment:
-      MONGO_URL: ${MONGO_URL}
-      REDIS_URL: ${REDIS_URL}
-    networks:
-      - sentiric-net
-    profiles: ["app", "default"]
+  # analytics-service:
+  #   build: ../sentiric-analytics-service
+  #   environment:
+  #     MONGO_URL: ${MONGO_URL}
+  #     REDIS_URL: ${REDIS_URL}
+  #   networks:
+  #     - sentiric-net
+  #   profiles: ["app", "default"]
 
-  notification-service:
-    build: ../sentiric-notification-service
-    environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
-    networks:
-      - sentiric-net
-    profiles: ["app", "default"]
+  # notification-service:
+  #   build: ../sentiric-notification-service
+  #   environment:
+  #     RABBITMQ_URL: ${RABBITMQ_URL}
+  #   networks:
+  #     - sentiric-net
+  #   profiles: ["app", "default"]
