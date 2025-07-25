@@ -51,6 +51,7 @@ cp .env.local.example configs/local/.env
 ./scripts/deploy-local.sh
 
 # Veya belirli profillerle:
+docker compose --profile data up -d
 docker compose --profile app up -d
 docker compose --profile telekom up -d
 ```
