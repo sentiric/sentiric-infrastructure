@@ -37,6 +37,7 @@ override.tf.json
 terraform.rc
 
 # .gitignore
+.env
 configs/local/
 configs/prod/
 *.secret
