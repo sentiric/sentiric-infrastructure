@@ -1,35 +1,76 @@
-# Sentiric Infrastructure: Platform Orkestrasyon Merkezi
+# 🚀 Sentiric Infrastructure: Platform Orchestration Hub
 
-Bu repo, Sentiric platformunun tüm servislerini bir araya getiren, hem yerel geliştirme hem de çok sunuculu üretim ortamları için ana orkestrasyon merkezidir.
+This repository is the central orchestration hub for the entire Sentiric platform. It uses Docker Compose, including profiles and includes, to manage all microservices for both **local development** and **multi-server production** environments.
 
-## Geliştirme Ortamı Kurulumu (Tek Sunucu)
+---
 
-1.  Tüm Sentiric repolarını aynı dizin seviyesine klonlayın.
-2.  Bu reponun içindeyken, `cp .env.local.example .env` komutuyla yerel ortam dosyanızı oluşturun.
-3.  Tüm platformu başlatmak için:
+## 1. Local Development Setup (Single Machine)
+
+This setup is ideal for developers to run the entire platform on their local machine.
+
+### Prerequisites
+- Docker and Docker Compose
+- Git
+- All Sentiric service repositories cloned into the same parent directory.
+
+### Instructions
+1.  **Clone all necessary repositories:**
+    Your workspace directory should look like this:
+    ```
+    /workspace/
+    ├── sentiric-infrastructure/  <-- You are here
+    ├── sentiric-agent-service/
+    └── ... and all other services
+    ```
+
+2.  **Configure your local environment:**
+    ```bash
+    cp .env.local.example .env
+    ```
+    Open `.env` and adjust `PUBLIC_IP` if needed.
+
+3.  **Run the platform:**
     ```bash
     docker compose up --build -d
     ```
-4.  Sadece belirli bir servis üzerinde çalışmak için:
+
+4.  **Run specific services:**
+    To work on a specific service, you can start it along with its core dependencies:
     ```bash
-    docker compose up --build -d agent-service postgres rabbitmq
+    docker compose up --build -d agent-service rabbitmq
     ```
 
-## Üretim Ortamı Dağıtımı (Çok Sunuculu)
-
-1.  Her sunucuya bu repoyu ve ilgili servis repolarını klonlayın.
-2.  İlgili sunucuda, `.env.prod.example` şablonunu kullanarak o sunucuya özel bir `.env` dosyası oluşturun.
-3.  **Telekom Sunucusunda (Sunucu 1):**
+5.  **Stop the platform:**
     ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-telekom.yml --profile telekom up -d
-    ```
-4.  **Uygulama Sunucusunda (Sunucu 2):**
-    ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-app.yml --profile app up -d
-    ```
-5.  **Veri Sunucusunda (Sunucu 3):**
-    ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-data.yml --profile data up -d
+    docker compose down --volumes
     ```
 
-* we can use Prometheus + Grafana Cloud (Ücretsiz)
+---
+
+## 2. Production Deployment (Multi-Server Example)
+
+This setup demonstrates how to deploy the platform across multiple servers (e.g., a Telekom Gateway, an Application Server, and a Data Server) using Docker Compose Profiles.
+
+### Prerequisites
+- Each server must have Docker and Docker Compose installed.
+- You must have a `.env.prod` file on each server containing the necessary environment variables. Use `.env.prod.example` as a template.
+
+### Instructions
+
+1.  **On the Telekom Gateway Server (e.g., Public Static IP):**
+    This server runs services that need direct public access for real-time communication.
+    ```bash
+    docker compose -f docker-compose.yml -f compose/profiles/prod-telekom.yml up -d
+    ```
+
+2.  **On the Application & AI Server:**
+    This server runs the core business logic and AI services.
+    ```bash
+    docker compose -f docker-compose.yml -f compose/profiles/prod-app.yml up -d
+    ```
+
+3.  **On the Data Server:**
+    This server runs the stateful services like databases and message brokers.
+    ```bash
+    docker compose -f docker-compose.yml -f compose/profiles/prod-data.yml up -d
+    ```

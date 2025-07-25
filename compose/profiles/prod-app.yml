@@ -1,7 +1,6 @@
 # Dosya Yolu: sentiric-infrastructure/compose/profiles/prod-app.yml
 
 # Bu profil, Uygulama & AI Sunucusunda (örn: İkinci Oracle Sunucusu) çalıştırılacaktır.
-version: '3.8'
 
 services:
   # --- BU SUNUCUDA ÇALIŞACAK SERVİSLER ---

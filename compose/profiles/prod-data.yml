@@ -1,7 +1,6 @@
 # Dosya Yolu: sentiric-infrastructure/compose/profiles/prod-data.yml
 
 # Bu profil, Veri Katmanı Sunucusunda (örn: Google Cloud) çalıştırılacaktır.
-version: '3.8'
 
 services:
   # --- BU SUNUCUDA ÇALIŞACAK SERVİSLER ---
