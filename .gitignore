@@ -36,7 +36,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Local environment variables
+# Local environment variables file
 .env
 
 # Docker artifacts

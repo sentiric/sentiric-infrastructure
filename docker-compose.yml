@@ -1,12 +1,9 @@
-# docker-compose.yml
+version: '3.8'
 
-# This main file orchestrates the entire platform by including components.
-# Each service's docker-compose.service.yml lives in its own repository,
-# making the system modular and easy to manage.
-
-# services:
-#   # Service definitions are automatically included from the files below.
-#   # This section is intentionally left empty for clarity.
+# This file is the single source of truth for orchestrating ALL Sentiric services.
+# Which services run is controlled by the '--profile' flag in the CLI.
+# `docker compose up` starts services with the 'default' profile.
+# `docker compose --profile app up` starts only services with the 'app' profile.
 
 networks:
   sentiric-net:
@@ -16,15 +13,156 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
-  # redis_data: # Uncomment when Redis is added to base-services.yml
 
-include:
-  # 1. Core Infrastructure Services
-  - ./compose/base-services.yml
+services:
+  # -------------------------------------------
+  # Category: Core Infrastructure
+  # Profiles: data, default
+  # -------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentiric_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentiric-net
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - default
+      - data
 
-  # 2. Core Backend Services
-  - ../sentiric-sip-signaling-service/docker-compose.service.yml
-  - ../sentiric-media-service/docker-compose.service.yml
-  - ../sentiric-user-service/docker-compose.service.yml
-  - ../sentiric-dialplan-service/docker-compose.service.yml
-  - ../sentiric-agent-service/docker-compose.service.yml
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: sentiric_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    networks:
+      - sentiric-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - default
+      - data
+
+  # -------------------------------------------
+  # Category: Telecom Gateway Services
+  # Profiles: telekom, default
+  # -------------------------------------------
+  sip-signaling:
+    build:
+      context: ../sentiric-sip-signaling-service
+    container_name: sentiric_sip_signaling
+    ports:
+      - "${SIP_PORT:-5060}:${SIP_PORT:-5060}/udp"
+    networks:
+      - sentiric-net
+    restart: always
+    environment:
+      - RUST_LOG=info # Log level can be configured here
+      - SIP_HOST=${SIP_HOST}
+      - SIP_PORT=${SIP_PORT}
+      - PUBLIC_IP=${PUBLIC_IP}
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
+      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      - user-service
+      - dialplan-service
+      - media-service
+      - rabbitmq
+    profiles:
+      - default
+      - telekom
+
+  media-service:
+    build:
+      context: ../sentiric-media-service
+    container_name: sentiric_media_service
+    ports:
+      - "${RTP_PORT_MIN:-10000}-${RTP_PORT_MAX:-10100}:${RTP_PORT_MIN:-10000}-${RTP_PORT_MAX:-10100}/udp"
+    networks:
+      - sentiric-net
+    restart: always
+    environment:
+      - GRPC_HOST=0.0.0.0
+      - GRPC_PORT=${GRPC_PORT_MEDIA}
+      - RTP_HOST=${RTP_HOST}
+      - RTP_PORT_MIN=${RTP_PORT_MIN}
+      - RTP_PORT_MAX=${RTP_PORT_MAX}
+    profiles:
+      - default
+      - telekom
+
+  # -------------------------------------------
+  # Category: Application & AI Services
+  # Profiles: app, default
+  # -------------------------------------------
+  user-service:
+    build:
+      context: ../sentiric-user-service
+    container_name: sentiric_user_service
+    networks:
+      - sentiric-net
+    restart: always
+    environment:
+      - GRPC_PORT=${GRPC_PORT_USER}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - default
+      - app
+
+  dialplan-service:
+    build:
+      context: ../sentiric-dialplan-service
+    container_name: sentiric_dialplan_service
+    networks:
+      - sentiric-net
+    restart: always
+    environment:
+      - GRPC_PORT=${GRPC_PORT_DIALPLAN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - default
+      - app
+
+  agent-service:
+    build:
+      context: ../sentiric-agent-service
+    container_name: sentiric_agent_service
+    networks:
+      - sentiric-net
+    restart: always
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    profiles:
+      - default
+      - app

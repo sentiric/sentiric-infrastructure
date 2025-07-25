@@ -1,20 +1,20 @@
 # 🚀 Sentiric Infrastructure: Platform Orchestration Hub
 
-This repository is the central orchestration hub for the entire Sentiric platform. It uses Docker Compose, including profiles and includes, to manage all microservices for both **local development** and **multi-server production** environments.
+This repository is the **single source of truth** for orchestrating the entire Sentiric platform. It uses a unified Docker Compose file with profiles to manage all microservices for both **local development** and **multi-server production** environments.
 
 ---
 
-## 1. Local Development Setup (Single Machine)
+## 1. Local Development Setup (Recommended)
 
-This setup is ideal for developers to run the entire platform on their local machine.
+This setup runs all necessary services on your local machine, tagged with the `default` profile.
 
 ### Prerequisites
 - Docker and Docker Compose
 - Git
-- All Sentiric service repositories cloned into the same parent directory.
+- All Sentiric service repositories cloned into the same parent directory as this one.
 
 ### Instructions
-1.  **Clone all necessary repositories:**
+1.  **Clone all repositories:**
     Your workspace directory should look like this:
     ```
     /workspace/
@@ -27,17 +27,17 @@ This setup is ideal for developers to run the entire platform on their local mac
     ```bash
     cp .env.local.example .env
     ```
-    Open `.env` and adjust `PUBLIC_IP` if needed.
+    Open `.env` and adjust `PUBLIC_IP` if needed for your local network setup.
 
-3.  **Run the platform:**
+3.  **Run the entire platform:**
+    This command will build all services and start the ones marked with the `default` profile.
     ```bash
     docker compose up --build -d
     ```
 
-4.  **Run specific services:**
-    To work on a specific service, you can start it along with its core dependencies:
+4.  **Check the status:**
     ```bash
-    docker compose up --build -d agent-service rabbitmq
+    docker compose ps
     ```
 
 5.  **Stop the platform:**
@@ -49,28 +49,25 @@ This setup is ideal for developers to run the entire platform on their local mac
 
 ## 2. Production Deployment (Multi-Server Example)
 
-This setup demonstrates how to deploy the platform across multiple servers (e.g., a Telekom Gateway, an Application Server, and a Data Server) using Docker Compose Profiles.
+This setup demonstrates how to deploy the platform across multiple servers using Docker Compose Profiles. You only need to clone this `infrastructure` repo and the relevant service repos on each server.
 
 ### Prerequisites
 - Each server must have Docker and Docker Compose installed.
-- You must have a `.env.prod` file on each server containing the necessary environment variables. Use `.env.prod.example` as a template.
+- Create a `.env` file on each server using `.env.prod.example` as a template, filling in the correct IP addresses for inter-server communication.
 
 ### Instructions
 
-1.  **On the Telekom Gateway Server (e.g., Public Static IP):**
-    This server runs services that need direct public access for real-time communication.
+1.  **On the Data Server:**
     ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-telekom.yml up -d
+    docker compose --profile data up --build -d
     ```
 
-2.  **On the Application & AI Server:**
-    This server runs the core business logic and AI services.
+2.  **On the Telekom Gateway Server:**
     ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-app.yml up -d
+    docker compose --profile telekom up --build -d
     ```
 
-3.  **On the Data Server:**
-    This server runs the stateful services like databases and message brokers.
+3.  **On the Application & AI Server:**
     ```bash
-    docker compose -f docker-compose.yml -f compose/profiles/prod-data.yml up -d
+    docker compose --profile app up --build -d
     ```
