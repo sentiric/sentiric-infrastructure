@@ -23,19 +23,25 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - sentiric-net
+    ports:
+      - "5432:5432"      
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
     profiles: ["data", "default"]
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:4.1.0-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - sentiric-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"      
     profiles: ["data", "default"]
 
   redis:
@@ -44,36 +50,44 @@ services:
       - redis_data:/data
     networks:
       - sentiric-net
+    ports:
+      - "6379:6379"         
     profiles: ["data", "default"]
 
   mongodb:
-    image: mongo:6
+    image: mongo:6.0.25-jammy
     volumes:
       - mongodb_data:/data/db
     networks:
       - sentiric-net
+    ports:
+      - "27017:27017"         
     profiles: ["data", "default"]
 
   # ==================== TELECOM SERVICES ====================
   sip-signaling:
     build: ../sentiric-sip-signaling-service
+    # env_file kullanmak yerine, docker-compose ana .env'yi otomatik yükler
+    # environment bölümü .env'deki değerleri doğrudan kullanır.
     environment:
-      SIP_HOST: ${SIP_HOST}
-      SIP_PORT: ${SIP_PORT}
-      PUBLIC_IP: ${PUBLIC_IP}
-      USER_SERVICE_URL: ${USER_SERVICE_URL}
-      RABBITMQ_URL: ${RABBITMQ_URL}
+      - SIP_HOST=${SIP_HOST}
+      - SIP_PORT=${SIP_PORT}
+      - PUBLIC_IP=${PUBLIC_IP}
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
+      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
     ports:
       - "${SIP_PORT}:${SIP_PORT}/udp"
     networks:
       - sentiric-net
-    profiles: ["telekom", "default"]
+    restart: always
 
   media-service:
     build: ../sentiric-media-service
     environment:
       RTP_PORTS: "${RTP_PORT_MIN}-${RTP_PORT_MAX}"
-      GRPC_PORT: ${MEDIA_GRPC_PORT}
+      GRPC_PORT: ${GRPC_PORT_MEDIA}
     ports:
       - "${RTP_PORT_MIN}-${RTP_PORT_MAX}:${RTP_PORT_MIN}-${RTP_PORT_MAX}/udp"
     networks:
@@ -85,9 +99,11 @@ services:
     build: ../sentiric-user-service
     environment:
       DB_URL: ${POSTGRES_URL}
-      GRPC_PORT: ${USER_GRPC_PORT}
+      GRPC_PORT: ${GRPC_PORT_USER}
     networks:
       - sentiric-net
+    ports:
+      - "${GRPC_PORT_USER}:${GRPC_PORT_USER}"        
     profiles: ["app", "default"]
 
   dialplan-service:
@@ -97,6 +113,8 @@ services:
       REDIS_URL: ${REDIS_URL}
     networks:
       - sentiric-net
+    ports:
+      - "${GRPC_PORT_DIALPLAN}:${GRPC_PORT_DIALPLAN}"          
     profiles: ["app", "default"]
 
   agent-service:
