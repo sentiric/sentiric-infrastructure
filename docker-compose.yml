@@ -82,6 +82,7 @@ services:
     networks:
       - sentiric-net
     restart: always
+    profiles: ["telekom", "default"]    
 
   media-service:
     build: ../sentiric-media-service
