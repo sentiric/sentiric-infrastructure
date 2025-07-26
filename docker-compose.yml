@@ -15,19 +15,26 @@ services:
   # ==================== CORE INFRA ====================
   postgres:
     image: postgres:16-alpine
+    container_name: sentiric_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sentiric_db}
+      POSTGRES_USER: ${POSTGRES_USER:-sentiric}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentiric_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # YENİ EKLENEN SATIR:
+      # Bu satır, konteyner ilk başladığında postgres-init/init.sql script'ini çalıştırır.
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - sentiric-net
     ports:
-      - "5432:5432"      
+      - "5432:5432"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
-    profiles: ["data", "default"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentiric}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
