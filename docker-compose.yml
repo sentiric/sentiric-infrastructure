@@ -1,4 +1,4 @@
-
+version: '3.9'
 
 networks:
   sentiric-net:
@@ -12,18 +12,16 @@ volumes:
   mongodb_data:
 
 services:
-  # ==================== CORE INFRA ====================
+  # ==================== VERİ KATMANI (DATA LAYER) ====================
   postgres:
     image: postgres:16-alpine
     container_name: sentiric_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sentiric_db}
-      POSTGRES_USER: ${POSTGRES_USER:-sentiric}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentiric_pass}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # YENİ EKLENEN SATIR:
-      # Bu satır, konteyner ilk başladığında postgres-init/init.sql script'ini çalıştırır.
       - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - sentiric-net
@@ -31,53 +29,71 @@ services:
       - "5432:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentiric}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - "data"
+      - "default"
 
   rabbitmq:
-    image: rabbitmq:4.1.0-management-alpine
+    image: rabbitmq:4.1.0-management-alpine # Versiyon güncellendi
+    container_name: sentiric_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_data:/var/lib/rabbitmq/
     networks:
       - sentiric-net
     ports:
       - "5672:5672"
-      - "15672:15672"      
-    profiles: ["data", "default"]
+      - "15672:15672"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - "data"
+      - "default"
 
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-    networks:
-      - sentiric-net
-    ports:
-      - "6379:6379"         
-    profiles: ["data", "default"]
+  # redis:
+  #   image: redis:7-alpine # Geri eklendi
+  #   container_name: sentiric_redis
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - sentiric-net
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+  #   profiles:
+  #     - "data"
+  #     - "default"
 
-  mongodb:
-    image: mongo:6.0.25-jammy
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - sentiric-net
-    ports:
-      - "27017:27017"         
-    profiles: ["data", "default"]
+  # mongodb:
+  #   image: mongo:6.0.25-jammy # Geri eklendi
+  #   container_name: sentiric_mongodb
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - sentiric-net
+  #   ports:
+  #     - "27017:27017"
+  #   restart: unless-stopped
+  #   profiles:
+  #     - "data"
+  #     - "default"
 
-  # ==================== TELECOM SERVICES ====================
+  # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
   sip-signaling:
     build: ../sentiric-sip-signaling-service
-    # env_file kullanmak yerine, docker-compose ana .env'yi otomatik yükler
-    # environment bölümü .env'deki değerleri doğrudan kullanır.
+    container_name: sentiric_sip_signaling
     environment:
-      - SIP_HOST=${SIP_HOST}
+      - SIP_HOST=0.0.0.0
       - SIP_PORT=${SIP_PORT}
       - PUBLIC_IP=${PUBLIC_IP}
       - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
@@ -88,66 +104,72 @@ services:
       - "${SIP_PORT}:${SIP_PORT}/udp"
     networks:
       - sentiric-net
-    restart: always
-    profiles: ["telekom", "default"]    
+    restart: unless-stopped
+    profiles:
+      - "telekom"
+      - "default"
 
   media-service:
     build: ../sentiric-media-service
+    container_name: sentiric_media_service
     environment:
-      RTP_PORTS: "${RTP_PORT_MIN}-${RTP_PORT_MAX}"
-      GRPC_PORT: ${GRPC_PORT_MEDIA}
+      - GRPC_PORT=${GRPC_PORT_MEDIA}
+      - RTP_PORT_MIN=${RTP_PORT_MIN}
+      - RTP_PORT_MAX=${RTP_PORT_MAX}
+      - RTP_HOST=0.0.0.0
     ports:
       - "${RTP_PORT_MIN}-${RTP_PORT_MAX}:${RTP_PORT_MIN}-${RTP_PORT_MAX}/udp"
     networks:
       - sentiric-net
-    profiles: ["telekom", "default"]
+    restart: unless-stopped
+    profiles:
+      - "telekom"
+      - "default"
 
-  # ==================== APP SERVICES ====================
+  # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
   user-service:
     build: ../sentiric-user-service
+    container_name: sentiric_user_service
     environment:
-      DB_URL: ${POSTGRES_URL}
-      GRPC_PORT: ${GRPC_PORT_USER}
+      - DATABASE_URL=${POSTGRES_URL}
+      - GRPC_PORT=${GRPC_PORT_USER}
     networks:
       - sentiric-net
-    ports:
-      - "${GRPC_PORT_USER}:${GRPC_PORT_USER}"        
-    profiles: ["app", "default"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - "app"
+      - "default"
 
   dialplan-service:
     build: ../sentiric-dialplan-service
+    container_name: sentiric_dialplan_service
     environment:
-      DB_URL: ${POSTGRES_URL}
-      REDIS_URL: ${REDIS_URL}
+      - DATABASE_URL=${POSTGRES_URL}
+      - GRPC_PORT=${GRPC_PORT_DIALPLAN}
     networks:
       - sentiric-net
-    ports:
-      - "${GRPC_PORT_DIALPLAN}:${GRPC_PORT_DIALPLAN}"          
-    profiles: ["app", "default"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - "app"
+      - "default"
 
   agent-service:
     build: ../sentiric-agent-service
+    container_name: sentiric_agent_service
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      MONGO_URL: ${MONGO_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
     networks:
       - sentiric-net
-    profiles: ["app", "default"]
-
-  # ==================== NEW SERVICES ====================
-  # analytics-service:
-  #   build: ../sentiric-analytics-service
-  #   environment:
-  #     MONGO_URL: ${MONGO_URL}
-  #     REDIS_URL: ${REDIS_URL}
-  #   networks:
-  #     - sentiric-net
-  #   profiles: ["app", "default"]
-
-  # notification-service:
-  #   build: ../sentiric-notification-service
-  #   environment:
-  #     RABBITMQ_URL: ${RABBITMQ_URL}
-  #   networks:
-  #     - sentiric-net
-  #   profiles: ["app", "default"]
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    profiles:
+      - "app"
+      - "default"

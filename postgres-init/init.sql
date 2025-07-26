@@ -1,27 +1,35 @@
--- Bu script, Docker Compose tarafından PostgreSQL konteyneri ilk kez başlatıldığında
--- otomatik olarak /docker-entrypoint-initdb.d/ dizininden çalıştırılır.
-
--- 'sentiric_db' veritabanı, POSTGRES_DB ortam değişkeni ile Docker tarafından
--- zaten oluşturulmuş olacaktır. Bu yüzden direkt o veritabanına bağlanmış oluruz.
-
 -- Kullanıcılarımızı temsil edecek 'users' tablosunu oluştur.
--- IF NOT EXISTS ifadesi, script'in tekrar çalışması durumunda hata vermesini engeller.
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(255) PRIMARY KEY, -- Telefon numarası veya dahili ID gibi benzersiz bir anahtar
+    id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
-    tenant_id VARCHAR(255) NOT NULL, -- Hangi müşteriye ait olduğu
+    tenant_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Test ve geliştirme için başlangıç verilerini ekle.
--- ON CONFLICT (id) DO NOTHING; ifadesi, script tekrar çalışırsa
--- aynı veriyi eklemeye çalışıp hata vermesini engeller.
+-- Başlangıç 'users' verilerini ekle.
 INSERT INTO users (id, name, email, tenant_id) VALUES
 ('1001', 'Alice', 'alice@sentiric.com', 'tenant-default'),
 ('1002', 'Bob', 'bob@sentiric.com', 'tenant-default'),
 ('902124548590', 'Main IVR Account', 'ivr@sentiric.com', 'tenant-default')
 ON CONFLICT (id) DO NOTHING;
 
--- Loglama için, işlemin tamamlandığını belirten bir mesaj.
 \echo '✅ "users" tablosu oluşturuldu ve başlangıç verileri eklendi.'
+
+-- YENİ EKLENEN BÖLÜM:
+-- Yönlendirme planlarını saklayacak 'dialplans' tablosunu oluştur.
+CREATE TABLE IF NOT EXISTS dialplans (
+    dialplan_id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL, -- XML veya JSON formatında dialplan içeriği
+    tenant_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Başlangıç 'dialplans' verilerini ekle.
+INSERT INTO dialplans (dialplan_id, user_id, content, tenant_id) VALUES
+('dp-internal-default', '1001', '<extension name=''internal''><condition><action application=''bridge'' data=''user/1002''/></condition></extension>', 'tenant-default'),
+('dp-main-ivr', '902124548590', '<extension name=''main_ivr''><condition><action application=''answer''/><action application=''playback'' data=''sounds/welcome.wav''/></condition></extension>', 'tenant-default')
+ON CONFLICT (dialplan_id) DO NOTHING;
+
+\echo '✅ "dialplans" tablosu oluşturuldu ve başlangıç verileri eklendi.'
