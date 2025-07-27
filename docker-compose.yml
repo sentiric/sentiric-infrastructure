@@ -2,7 +2,6 @@
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
-    driver: ${NETWORK_DRIVER:-bridge}
 
 volumes:
   postgres_data:
@@ -11,7 +10,7 @@ volumes:
   mongodb_data:
 
 services:
-  # ==================== VERİ KATMANI (DATA LAYER) ====================
+  # VERİ KATMANI
   postgres:
     image: postgres:16-alpine
     container_name: sentiric_postgres
@@ -37,7 +36,7 @@ services:
       - "default"
 
   rabbitmq:
-    image: rabbitmq:4.1.0-management-alpine # Versiyon güncellendi
+    image: rabbitmq:4.1.0-management-alpine
     container_name: sentiric_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
@@ -58,52 +57,45 @@ services:
     profiles:
       - "data"
       - "default"
+  
+  # AĞ GEÇİTLERİ
+  sip-gateway:
+    build: ../sentiric-sip-gateway-service
+    container_name: sentiric_sip_gateway
+    ports:
+      - "${EXTERNAL_SIP_PORT}:5060/udp"
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    # depends_on:
+    #   - sip-signaling
+    profiles:
+      - "telekom"
+      - "default"
 
-  # redis:
-  #   image: redis:7-alpine # Geri eklendi
-  #   container_name: sentiric_redis
-  #   volumes:
-  #     - redis_data:/data
-  #   networks:
-  #     - sentiric-net
-  #   ports:
-  #     - "6379:6379"
-  #   restart: unless-stopped
-  #   profiles:
-  #     - "data"
-  #     - "default"
-
-  # mongodb:
-  #   image: mongo:6.0.25-jammy # Geri eklendi
-  #   container_name: sentiric_mongodb
-  #   volumes:
-  #     - mongodb_data:/data/db
-  #   networks:
-  #     - sentiric-net
-  #   ports:
-  #     - "27017:27017"
-  #   restart: unless-stopped
-  #   profiles:
-  #     - "data"
-  #     - "default"
-
-  # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
   sip-signaling:
     build: ../sentiric-sip-signaling-service
     container_name: sentiric_sip_signaling
     environment:
       - SIP_HOST=0.0.0.0
-      - SIP_PORT=${SIP_PORT}
+      - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
       - PUBLIC_IP=${PUBLIC_IP}
       - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
       - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
       - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
       - RABBITMQ_URL=${RABBITMQ_URL}
-    ports:
-      - "${SIP_PORT}:${SIP_PORT}/udp"
     networks:
       - sentiric-net
     restart: unless-stopped
+    # YENİ EKLENEN BÖLÜM:
+    # Bu servis, diğer üç temel servisin de sağlıklı olmasını beklemeli.
+    depends_on:
+      user-service:
+        condition: service_started # Go servisleri hızlı başlar
+      dialplan-service:
+        condition: service_started
+      media-service:
+        condition: service_started # Rust servisi de hızlı başlar
     profiles:
       - "telekom"
       - "default"
@@ -112,12 +104,12 @@ services:
     build: ../sentiric-media-service
     container_name: sentiric_media_service
     environment:
-      - GRPC_PORT=${GRPC_PORT_MEDIA}
-      - RTP_PORT_MIN=${RTP_PORT_MIN}
-      - RTP_PORT_MAX=${RTP_PORT_MAX}
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
+      - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
+      - RTP_PORT_MAX=${EXTERNAL_RTP_PORT_MAX}
       - RTP_HOST=0.0.0.0
     ports:
-      - "${RTP_PORT_MIN}-${RTP_PORT_MAX}:${RTP_PORT_MIN}-${RTP_PORT_MAX}/udp"
+      - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
     networks:
       - sentiric-net
     restart: unless-stopped
@@ -125,13 +117,13 @@ services:
       - "telekom"
       - "default"
 
-  # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
+  # UYGULAMA SERVİSLERİ
   user-service:
     build: ../sentiric-user-service
     container_name: sentiric_user_service
     environment:
       - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${GRPC_PORT_USER}
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_USER}
     networks:
       - sentiric-net
     restart: unless-stopped
@@ -147,7 +139,7 @@ services:
     container_name: sentiric_dialplan_service
     environment:
       - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${GRPC_PORT_DIALPLAN}
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_DIALPLAN}
     networks:
       - sentiric-net
     restart: unless-stopped
