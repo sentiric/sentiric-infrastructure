@@ -58,24 +58,26 @@ services:
       - "data"
       - "default"
   
-  # AĞ GEÇİTLERİ
-  sip-gateway:
-    build: ../sentiric-sip-gateway-service
-    container_name: sentiric_sip_gateway
-    ports:
-      - "${EXTERNAL_SIP_PORT}:5060/udp"
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    # depends_on:
-    #   - sip-signaling
-    profiles:
-      - "telekom"
-      - "default"
+  # # AĞ GEÇİTLERİ
+  # sip-gateway:
+  #   build: ../sentiric-sip-gateway-service
+  #   container_name: sentiric_sip_gateway
+  #   ports:
+  #     - "${EXTERNAL_SIP_PORT}:5060/udp"
+  #   networks:
+  #     - sentiric-net
+  #   restart: unless-stopped
+  #   # depends_on:
+  #   #   - sip-signaling
+  #   profiles:
+  #     - "telekom"
+  #     - "default"
 
   sip-signaling:
     build: ../sentiric-sip-signaling-service
     container_name: sentiric_sip_signaling
+    ports:
+      - "${EXTERNAL_SIP_PORT}:5060/udp"    
     environment:
       - SIP_HOST=0.0.0.0
       - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}

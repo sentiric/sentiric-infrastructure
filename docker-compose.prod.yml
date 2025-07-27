@@ -66,21 +66,23 @@ services:
       - "default"
 
   # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
-  sip-gateway:
-    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    container_name: sentiric_sip_gateway
-    ports:
-      - "${EXTERNAL_SIP_PORT}:5060/udp"
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    profiles:
-      - "telekom"
-      - "default"
+  # sip-gateway:
+  #   image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
+  #   container_name: sentiric_sip_gateway
+  #   ports:
+  #     - "${EXTERNAL_SIP_PORT}:5060/udp"
+  #   networks:
+  #     - sentiric-net
+  #   restart: unless-stopped
+  #   profiles:
+  #     - "telekom"
+  #     - "default"
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
     container_name: sentiric_sip_signaling
+    ports:
+      - "${EXTERNAL_SIP_PORT}:5060/udp"      
     environment:
       - SIP_HOST=0.0.0.0
       - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
