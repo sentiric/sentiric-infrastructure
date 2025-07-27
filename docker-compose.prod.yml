@@ -5,7 +5,7 @@
 # 'build' işlemi yapmaz, bu yüzden hızlı ve tutarlıdır.
 # ====================================================================
 
-version: '3.9'
+
 
 networks:
   sentiric-net:
@@ -99,6 +99,8 @@ services:
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
     container_name: sentiric_media_service
+    env_file:
+      - ./.env    
     environment:
       - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
       - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
