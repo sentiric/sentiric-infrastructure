@@ -71,7 +71,7 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
     # docker-compose -f docker-compose.prod.yml --profile telekom up -d
 
     # Veya tek bir sunucuda tüm sistemi başlatmak için:
-    docker-compose -f docker-compose.prod.yml up -d
+    docker-compose -f docker-compose.prod.yml --profile default up -d
     ```
 ## 🌐 Servis Dağılımı
 
