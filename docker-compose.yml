@@ -103,6 +103,8 @@ services:
   media-service:
     build: ../sentiric-media-service
     container_name: sentiric_media_service
+    env_file:
+      - ./.env    
     environment:
       - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
       - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
