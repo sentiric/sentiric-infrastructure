@@ -157,6 +157,8 @@ services:
     container_name: sentiric_agent_service
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      # - TTS_SERVICE_GRPC_URL=${TTS_SERVICE_GRPC_URL} # Gelecekte
     networks:
       - sentiric-net
     restart: unless-stopped
