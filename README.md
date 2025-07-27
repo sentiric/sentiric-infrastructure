@@ -56,9 +56,14 @@ docker compose --profile app up -d
 docker compose --profile telekom up -d
 ```
 
+Tüm servisleri başlat
+```bash
+docker-compose --profile default  up --build -d
+```
+
 ### 3. Servisleri Durdur
 ```bash
-docker compose down
+docker-compose  --profile default  down -v
 ```
 
 ## ☁️ Üretim Dağıtımı
