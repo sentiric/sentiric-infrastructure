@@ -1,0 +1,154 @@
+# ====================================================================
+#          SENTIRIC PLATFORMU - ÜRETİM ORTAMI ORKESTRASYONU
+# ====================================================================
+# Bu dosya, önceden oluşturulmuş Docker imajlarını ghcr.io'dan çeker.
+# 'build' işlemi yapmaz, bu yüzden hızlı ve tutarlıdır.
+# ====================================================================
+
+version: '3.9'
+
+networks:
+  sentiric-net:
+    name: ${NETWORK_NAME:-sentiric-net}
+    driver: ${NETWORK_DRIVER:-bridge}
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+services:
+  # ==================== VERİ KATMANI (DATA LAYER) ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentiric_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - sentiric-net
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - "data"
+      - "default"
+
+  rabbitmq:
+    image: rabbitmq:4.1.0-management-alpine
+    container_name: sentiric_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    networks:
+      - sentiric-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - "data"
+      - "default"
+
+  # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
+  sip-gateway:
+    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
+    container_name: sentiric_sip_gateway
+    ports:
+      - "${EXTERNAL_SIP_PORT}:5060/udp"
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "telekom"
+      - "default"
+
+  sip-signaling:
+    image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
+    container_name: sentiric_sip_signaling
+    environment:
+      - SIP_HOST=0.0.0.0
+      - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
+      - PUBLIC_IP=${PUBLIC_IP}
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
+      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "telekom"
+      - "default"
+
+  media-service:
+    image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
+    container_name: sentiric_media_service
+    environment:
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
+      - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
+      - RTP_PORT_MAX=${EXTERNAL_RTP_PORT_MAX}
+      - RTP_HOST=0.0.0.0
+    ports:
+      - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "telekom"
+      - "default"
+
+  # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
+  user-service:
+    image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
+    container_name: sentiric_user_service
+    environment:
+      - DATABASE_URL=${POSTGRES_URL}
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_USER}
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "app"
+      - "default"
+
+  dialplan-service:
+    image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
+    container_name: sentiric_dialplan_service
+    environment:
+      - DATABASE_URL=${POSTGRES_URL}
+      - GRPC_PORT=${INTERNAL_GRPC_PORT_DIALPLAN}
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "app"
+      - "default"
+
+  agent-service:
+    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
+    container_name: sentiric_agent_service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "app"
+      - "default"

@@ -31,35 +31,47 @@ git clone https://github.com/sentiric/sentiric-user-service.git
 # Diğer servis repolarını da klonlayın...
 ```
 
-## 🖥️ Yerel Geliştirme
 
-### 1. Ortamı Hazırla
-```bash
-cp .env.local.example configs/local/.env
-# .env dosyasını ihtiyacınıza göre düzenleyin
-```
+## 🖥️ Yerel Geliştirme (Local Development)
 
-### 2. Servisleri Başlat
+Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek için **`docker-compose.yml`** dosyasını kullanın. Bu dosya, servisleri yerel kaynak kodunuzdan inşa eder (`build`).
 
+1.  **Ortamı Hazırla:**
+    ```bash
+    cp .env.local.example .env
+    # .env dosyasını kendi lokal ayarlarınıza göre düzenleyin.
+    ```
+2.  **Tüm Sistemi İnşa Et ve Başlat:**
+    ```bash
+    # Bu komut, tüm servisleri yerel koddan build eder ve başlatır.
+    docker-compose -f docker-compose.yml up --build -d
+    ```
 
-# Veya belirli profillerle:
-```bash
-docker compose --profile data up -d
-docker compose --profile app up -d
-docker compose --profile telekom up -d
-```
+## ☁️ Üretim Dağıtımı (Production Deployment)
 
-Tüm servisleri başlat
-```bash
-docker-compose --profile default  up --build -d
-```
+Üretim sunucularında, CI/CD tarafından oluşturulmuş ve test edilmiş imajları doğrudan GitHub Container Registry'den (`ghcr.io`) çekmek için **`docker-compose.prod.yml`** dosyasını kullanın. Bu, `build` işlemi yapmaz.
 
-### 3. Servisleri Durdur
-```bash
-docker-compose  --profile default  down -v
-```
+1.  **Ortamı Hazırla:**
+    *   Üretim sunucusuna özel bir `.env` dosyası oluşturun (`.env.prod.example`'dan kopyalayarak).
+    *   `PUBLIC_IP` gibi değişkenleri sunucunun gerçek IP adresiyle güncelleyin.
 
+2.  **En Son İmajları Çek:**
+    ```bash
+    # Opsiyonel: TAG=v1.2.3 gibi belirli bir versiyonu belirtebilirsiniz.
+    # export TAG=v1.2.3
+    docker-compose -f docker-compose.prod.yml pull
+    ```
 
+3.  **Sistemi Başlat:**
+    ```bash
+    # Sadece ilgili sunucunun profilini başlatmak için:
+    # docker-compose -f docker-compose.prod.yml --profile data up -d
+    # docker-compose -f docker-compose.prod.yml --profile app up -d
+    # docker-compose -f docker-compose.prod.yml --profile telekom up -d
+
+    # Veya tek bir sunucuda tüm sistemi başlatmak için:
+    docker-compose -f docker-compose.prod.yml up -d
+    ```
 ## 🌐 Servis Dağılımı
 
 | Sunucu Tipi   | Servisler                          | Profile |
@@ -67,4 +79,3 @@ docker-compose  --profile default  down -v
 | **Data**      | PostgreSQL, RabbitMQ, Redis, MongoDB | data    |
 | **App**       | User, Dialplan, Agent, Analytics   | app     |
 | **Telekom**   | SIP Signaling, Media Service       | telekom |
-
