@@ -106,12 +106,13 @@ services:
     build: ../sentiric-media-service
     container_name: sentiric_media_service
     env_file:
-      - ./.env    
+      - ./.env
     environment:
       - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
       - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
       - RTP_PORT_MAX=${EXTERNAL_RTP_PORT_MAX}
       - RTP_HOST=0.0.0.0
+      - PUBLIC_IP=${PUBLIC_IP}
     ports:
       - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
     networks:

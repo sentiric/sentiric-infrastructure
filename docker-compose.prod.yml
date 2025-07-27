@@ -108,6 +108,7 @@ services:
       - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
       - RTP_PORT_MAX=${EXTERNAL_RTP_PORT_MAX}
       - RTP_HOST=0.0.0.0
+      - PUBLIC_IP=${PUBLIC_IP}      
     ports:
       - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
     networks:
