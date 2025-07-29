@@ -45,7 +45,8 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
     ```bash
     # Bu komut, tüm servisleri yerel koddan build eder ve başlatır.
     docker-compose -f docker-compose.yml --profile default  down
-    docker-compose -f docker-compose.yml --profile default  up --build -d    
+    docker-compose -f docker-compose.yml --profile default  up --build -d
+    docker-compose -f docker-compose.yml -f docker-compose.override.yml up  
     ```
 
 ## ☁️ Üretim Dağıtımı (Production Deployment)
