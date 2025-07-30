@@ -107,7 +107,7 @@ services:
       - PUBLIC_IP=${PUBLIC_IP}
     ports:
       # Dış RTP port aralığını, içerideki aynı aralığa yönlendiriyoruz.
-      - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
+      - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10600}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10600}/udp"
       # gRPC portunu test için dışarı açmak gerekebilir
       - "50052:50052"
     networks:
