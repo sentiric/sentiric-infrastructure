@@ -20,7 +20,6 @@ services:
   # ==================== VERİ KATMANI (DATA LAYER) ====================
   postgres:
     image: postgres:16-alpine
-    container_name: sentiric_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -44,7 +43,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
@@ -68,7 +66,6 @@ services:
   # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    container_name: sentiric_sip_gateway
     env_file:
       - ./.env    
     ports:
@@ -82,7 +79,6 @@ services:
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
-    container_name: sentiric_sip_signaling
     # ports:
     #   - "${EXTERNAL_SIP_PORT}:5060/udp"
     env_file:
@@ -104,17 +100,16 @@ services:
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
-    container_name: sentiric_media_service
     env_file:
-      - ./.env    
+      - ./.env
+    # Ana .env dosyasından PUBLIC_IP'yi alır (opsiyonel ama iyi pratik)
     environment:
-      - GRPC_PORT=${INTERNAL_GRPC_PORT_MEDIA}
-      - RTP_PORT_MIN=${EXTERNAL_RTP_PORT_MIN}
-      - RTP_PORT_MAX=${EXTERNAL_RTP_PORT_MAX}
-      - RTP_HOST=0.0.0.0
-      - PUBLIC_IP=${PUBLIC_IP}      
+      - PUBLIC_IP=${PUBLIC_IP}
     ports:
+      # Dış RTP port aralığını, içerideki aynı aralığa yönlendiriyoruz.
       - "${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}:${EXTERNAL_RTP_PORT_MIN}-${EXTERNAL_RTP_PORT_MAX}/udp"
+      # gRPC portunu test için dışarı açmak gerekebilir
+      - "50052:50052"
     networks:
       - sentiric-net
     restart: unless-stopped
@@ -125,7 +120,6 @@ services:
   # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
-    container_name: sentiric_user_service
     environment:
       - DATABASE_URL=${POSTGRES_URL}
       - GRPC_PORT=${INTERNAL_GRPC_PORT_USER}
@@ -138,7 +132,6 @@ services:
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
-    container_name: sentiric_dialplan_service
     environment:
       - DATABASE_URL=${POSTGRES_URL}
       - GRPC_PORT=${INTERNAL_GRPC_PORT_DIALPLAN}
@@ -151,7 +144,6 @@ services:
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    container_name: sentiric_agent_service
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
       - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}

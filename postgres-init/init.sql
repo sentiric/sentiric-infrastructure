@@ -40,10 +40,10 @@ CREATE TABLE IF NOT EXISTS announcements (
     tenant_id VARCHAR(255) NOT NULL REFERENCES tenants(id)
 );
 INSERT INTO announcements (id, description, audio_path, tenant_id) VALUES
-('ANNOUNCE_SYSTEM_ERROR_TR', 'Genel sistem hatası (TR)', 'assets/audio/tr/system_error.wav', 'system_tenant'),
-('ANNOUNCE_SYSTEM_MAINTENANCE_TR', 'Sistem bakım modu (TR)', 'assets/audio/tr/maintenance.wav', 'system_tenant'),
-('ANNOUNCE_GUEST_WELCOME_TR', 'İlk kez arayan misafirler (TR)', 'assets/audio/tr/welcome_guest.wav', 'system_tenant'),
-('ANNOUNCE_DEFAULT_WELCOME_TR', 'Default Tenant standart karşılama (TR)', 'assets/audio/tr/welcome.wav', 'default_tenant')
+('ANNOUNCE_SYSTEM_ERROR_TR', 'Genel sistem hatası (TR)', 'audio/tr/system_error.wav', 'system_tenant'),
+('ANNOUNCE_SYSTEM_MAINTENANCE_TR', 'Sistem bakım modu (TR)', 'audio/tr/maintenance.wav', 'system_tenant'),
+('ANNOUNCE_GUEST_WELCOME_TR', 'İlk kez arayan misafirler (TR)', 'audio/tr/welcome_anonymous.wav', 'system_tenant'),
+('ANNOUNCE_DEFAULT_WELCOME_TR', 'Default Tenant standart karşılama (TR)', 'audio/tr/welcome.wav', 'default_tenant')
 ON CONFLICT (id) DO NOTHING;
 \echo '✅ Tablo 3/5: "announcements" oluşturuldu.'
 
