@@ -46,8 +46,8 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
     # Bu komut, tüm servisleri yerel koddan build eder ve başlatır.
     docker-compose -f docker-compose.yml --profile default  down
     docker-compose -f docker-compose.yml --profile default  up --build -d
-    docker-compose -f docker-compose.yml -f docker-compose.override.yml up  
-    docker-compose -f docker-compose.yml -f docker-compose.override.yml --profile default up
+    docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+    docker-compose -f docker-compose.yml -f docker-compose.override.yml --profile default up -d
     ```
 
 ## ☁️ Üretim Dağıtımı (Production Deployment)
@@ -74,6 +74,8 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
 
     # Veya tek bir sunucuda tüm sistemi başlatmak için:
     docker-compose -f docker-compose.prod.yml --profile default up -d
+    docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default up -d
+    docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default down
     ```
 ## 🌐 Servis Dağılımı
 
