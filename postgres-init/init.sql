@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS inbound_routes (
     tenant_id VARCHAR(255) NOT NULL REFERENCES tenants(id),
     active_dialplan_id VARCHAR(255) REFERENCES dialplans(id),
     failsafe_dialplan_id VARCHAR(255) REFERENCES dialplans(id),
-    is_maintenance_mode BOOLEAN DEFAULT FALSE
+    is_maintenance_mode BOOLEAN DEFAULT TRUE
 );
 INSERT INTO inbound_routes (phone_number, tenant_id, active_dialplan_id, failsafe_dialplan_id) VALUES 
 ('902124548590', 'default_tenant', 'DP_TENANT_DEFAULT_WELCOME', 'DP_SYSTEM_MAINTENANCE')
