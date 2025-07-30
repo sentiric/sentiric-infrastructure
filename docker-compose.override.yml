@@ -1,4 +1,4 @@
-
+# docker-compose.override.yml - e2-micro için optimize edilmiş hali
 services:
   postgres:
     mem_limit: 256m
@@ -8,20 +8,22 @@ services:
     mem_limit: 256m
     cpus: 0.3
 
+  # Go servislerinin başlangıç belleğini artırıyoruz
   user-service:
-    mem_limit: 128m
-    cpus: 0.2
+    mem_limit: 200m
+    cpus: 0.25
 
   dialplan-service:
-    mem_limit: 128m
-    cpus: 0.2
+    mem_limit: 200m
+    cpus: 0.25
 
+  # Diğer servisler için limitler
   agent-service:
-    mem_limit: 128m
-    cpus: 0.2
+    mem_limit: 200m
+    cpus: 0.25
 
   media-service:
-    mem_limit: 256m
+    mem_limit: 200m
     cpus: 0.3
 
   sip-gateway:
@@ -29,5 +31,5 @@ services:
     cpus: 0.2
 
   sip-signaling:
-    mem_limit: 128m
-    cpus: 0.2
+    mem_limit: 200m
+    cpus: 0.25
