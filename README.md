@@ -47,6 +47,7 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
     docker-compose -f docker-compose.yml --profile default  down
     docker-compose -f docker-compose.yml --profile default  up --build -d
     docker-compose -f docker-compose.yml -f docker-compose.override.yml up  
+    docker-compose -f docker-compose.yml -f docker-compose.override.yml --profile default up
     ```
 
 ## ☁️ Üretim Dağıtımı (Production Deployment)
