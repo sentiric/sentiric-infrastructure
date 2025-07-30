@@ -1,102 +1,83 @@
 # 🚀 Sentiric Platform Orchestration Hub
 
-**Tek compose dosyasıyla tüm ortam yönetimi** - Yerel geliştirmeden çok sunuculu üretim ortamlarına kadar her senaryoyu destekler
-
-## 📌 Önemli Özellikler
-- **Tek bir compose dosyası** ile tüm servis yönetimi
-- **Profile tabanlı** dağıtım (data/app/telekom)
-- **Hem yerel hem de prod** ortam desteği
-- **Dinamik bağımlılık yönetimi** ile esnek yapı
-- **Otomatik deploy scriptleri** ile kolay dağıtım
+Bu repo, Sentiric platformunun tüm servislerini Docker Compose kullanarak yönetmek için merkezi orkestrasyon merkezidir. Yerel geliştirmeden üretime kadar tüm dağıtım senaryolarını destekler.
 
 ## 📂 Dosya Yapısı
-```
+
+```plaintext
 sentiric-infrastructure/
-├── docker-compose.yml          # Ana compose dosyası
-├── .env.local.example          # Yerel ortam örneği
-
+├── docker-compose.prod.yml       # Üretim için imajları çeker
+├── docker-compose.override.yml   # Kaynak limitlerini belirler (CPU/RAM)
+├── docker-compose.yml            # Yerel geliştirme için koddan build eder
+├── deploy.sh                     # Üretim ortamı için otomatize dağıtım script'i
+├── .env.local.example            # Yerel ortam için .env şablonu
+└── postgres-init/                # Veritabanı başlangıç script'i
 ```
 
-## 🛠️ Kurulum
+## 🛠️ Kurulum ve Önkoşullar
 
-### 1. Önkoşullar
-- Docker 20.10+
-- Docker Compose 2.0+
+- Docker Engine (en güncel sürüm)
+- **Docker Compose Plugin** (Modern `docker compose` komutu için gereklidir, eski `docker-compose` değil)
 - Git
-
-### 2. Tüm Repoları Klonla
-```bash
-git clone https://github.com/sentiric/sentiric-infrastructure.git
-git clone https://github.com/sentiric/sentiric-user-service.git
-# Diğer servis repolarını da klonlayın...
-```
-
-
-## 🖥️ Yerel Geliştirme (Local Development)
-
-Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek için **`docker-compose.yml`** dosyasını kullanın. Bu dosya, servisleri yerel kaynak kodunuzdan inşa eder (`build`).
-
-1.  **Ortamı Hazırla:**
-    ```bash
-    cp .env.local.example .env
-    # .env dosyasını kendi lokal ayarlarınıza göre düzenleyin.
-    ```
-2.  **Tüm Sistemi İnşa Et ve Başlat:**
-    ```bash
-    # Bu komut, tüm servisleri yerel koddan build eder ve başlatır.
-    docker-compose -f docker-compose.yml --profile default  down
-    docker-compose -f docker-compose.yml --profile default  up --build -d
-    docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
-    docker-compose -f docker-compose.yml -f docker-compose.override.yml --profile default up -d
-    ```
-
-## ☁️ Üretim Dağıtımı (Production Deployment)
-
-Üretim sunucularında, CI/CD tarafından oluşturulmuş ve test edilmiş imajları doğrudan GitHub Container Registry'den (`ghcr.io`) çekmek için **`docker-compose.prod.yml`** dosyasını kullanın. Bu, `build` işlemi yapmaz.
-
-1.  **Ortamı Hazırla:**
-    *   Üretim sunucusuna özel bir `.env` dosyası oluşturun (`.env.prod.example`'dan kopyalayarak).
-    *   `PUBLIC_IP` gibi değişkenleri sunucunun gerçek IP adresiyle güncelleyin.
-
-2.  **En Son İmajları Çek:**
-    ```bash
-    # Opsiyonel: TAG=v1.2.3 gibi belirli bir versiyonu belirtebilirsiniz.
-    # export TAG=v1.2.3
-    docker-compose -f docker-compose.prod.yml pull
-    ```
-
-3.  **Sistemi Başlat:**
-    ```bash
-    # Sadece ilgili sunucunun profilini başlatmak için:
-    # docker-compose -f docker-compose.prod.yml --profile data up -d
-    # docker-compose -f docker-compose.prod.yml --profile app up -d
-    # docker-compose -f docker-compose.prod.yml --profile telekom up -d
-
-    # Veya tek bir sunucuda tüm sistemi başlatmak için:
-    docker-compose -f docker-compose.prod.yml --profile default up -d
-    docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default up -d
-    docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default down
-    ```
-## 🌐 Servis Dağılımı
-
-| Sunucu Tipi   | Servisler                          | Profile |
-|---------------|------------------------------------|---------|
-| **Data**      | PostgreSQL, RabbitMQ, Redis, MongoDB | data    |
-| **App**       | User, Dialplan, Agent, Analytics   | app     |
-| **Telekom**   | SIP Signaling, Media Service       | telekom |
+- Tüm Sentiric servis repolarının bu dizinle aynı seviyede klonlanmış olması (yerel geliştirme için).
 
 ---
-sorun giderme
+
+## ☁️ Üretim Dağıtımı (Production Deployment) - ÖNERİLEN YÖNTEM
+
+Üretim sunucularında, CI/CD tarafından oluşturulmuş ve test edilmiş imajları kullanarak sistemi ayağa kaldırmak için **`deploy.sh`** script'ini kullanın.
+
+1.  **Ortamı Hazırla:**
+    ```bash
+    # .env.local.example dosyasını .env olarak kopyalayın
+    cp .env.local.example .env
+    
+    # .env dosyasını açıp sunucunuzun PUBLIC_IP'si gibi değişkenleri güncelleyin
+    nano .env
+    ```
+
+2.  **Dağıtım Script'ini Çalıştır:**
+    ```bash
+    # Script'i çalıştırılabilir yap
+    chmod +x deploy.sh
+    
+    # Script'i çalıştırarak tüm sistemi kontrollü bir şekilde başlat
+    sudo ./deploy.sh
+    ```
+    Bu script, sistemi temizler, en son imajları çeker ve servisleri profillere göre kademeli olarak başlatır.
+
+---
+
+## 🖥️ Manuel Dağıtım ve Yönetim (Gelişmiş)
+
+### İmajları Çekme
 ```bash
-# Önce çalışan tüm konteynerleri durdurmaya çalışalım (hata verirse sorun değil)
-sudo docker stop $(docker ps -a -q) || true
-sudo docker rm $(docker ps -a -q) || true
+# Tüm servislerin en son imajlarını çeker
+sudo docker compose -f docker-compose.prod.yml pull
+```
 
-# Docker sistemini tamamen temizle (imajlar, volumelar, networkler)
-sudo docker system prune -a -f --volumes
+### Sistemi Başlatma (Profil Tabanlı)
+```bash
+# Sadece Veri Katmanını Başlat
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile data up -d
 
-# -f: Follow (takip et) - logları canlı olarak akıtır
-# --tail="50": Son 50 satırı göstererek başlar, böylece geçmişe de göz atabilirsiniz
-# --timestamps: Her log satırının başına zaman damgası ekler
-sudo docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml logs -f --tail="50" --timestamps
+# Uygulama Katmanını Ekle
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile app up -d
+
+# Telekom Katmanını Ekle
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile telekom up -d
+```
+
+### Sistemi Durdurma
+```bash
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml down
+```
+
+### Logları İzleme
+```bash
+# Tüm servislerin loglarını canlı olarak izle
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml logs -f
+
+# Sadece belirli bir servisin loglarını izle (örn: agent-service)
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml logs -f agent-service
 ```
