@@ -84,3 +84,19 @@ Yerel makinenizde, kodda yaptığınız değişiklikleri anında test etmek içi
 | **Data**      | PostgreSQL, RabbitMQ, Redis, MongoDB | data    |
 | **App**       | User, Dialplan, Agent, Analytics   | app     |
 | **Telekom**   | SIP Signaling, Media Service       | telekom |
+
+---
+sorun giderme
+```bash
+# Önce çalışan tüm konteynerleri durdurmaya çalışalım (hata verirse sorun değil)
+sudo docker stop $(docker ps -a -q) || true
+sudo docker rm $(docker ps -a -q) || true
+
+# Docker sistemini tamamen temizle (imajlar, volumelar, networkler)
+sudo docker system prune -a -f --volumes
+
+# -f: Follow (takip et) - logları canlı olarak akıtır
+# --tail="50": Son 50 satırı göstererek başlar, böylece geçmişe de göz atabilirsiniz
+# --timestamps: Her log satırının başına zaman damgası ekler
+sudo docker-compose -f docker-compose.prod.yml -f docker-compose.override.yml logs -f --tail="50" --timestamps
+```

@@ -156,16 +156,17 @@ services:
 
   agent-service:
     build: ../sentiric-agent-service
+    env_file:
+      - ./.env
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
       - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      # - TTS_SERVICE_GRPC_URL=${TTS_SERVICE_GRPC_URL} # Gelecekte
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL} # Bu da gerekli olacak
+      - DATABASE_URL=${POSTGRES_URL}
+    # BİTTİ
     networks:
       - sentiric-net
     restart: unless-stopped
-    # depends_on:
-    #   rabbitmq:
-    #     condition: service_healthy
     profiles:
       - "app"
       - "default"

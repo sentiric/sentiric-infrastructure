@@ -144,9 +144,15 @@ services:
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
+    # BU BÖLÜMÜ EKLEYİN/GÜNCELLEYİN
+    env_file:
+      - ./.env
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
       - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL} # Bu da gerekli olacak
+      - DATABASE_URL=${POSTGRES_URL}
+    # BİTTİ
     networks:
       - sentiric-net
     restart: unless-stopped
