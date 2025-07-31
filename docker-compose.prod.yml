@@ -1,11 +1,9 @@
 # ====================================================================
-#          SENTIRIC PLATFORMU - ÜRETİM ORTAMI ORKESTRASYONU
+#          SENTIRIC PLATFORMU - ÜRETİM ORKESTRASYONU (v2.0 - Profil Tabanlı)
 # ====================================================================
-# Bu dosya, önceden oluşturulmuş Docker imajlarını ghcr.io'dan çeker.
-# 'build' işlemi yapmaz, bu yüzden hızlı ve tutarlıdır.
+# Bu dosya, tüm servisleri tanımlar ve profiller aracılığıyla
+# hangi servisin nerede çalışacağını yönetir.
 # ====================================================================
-
-
 
 networks:
   sentiric-net:
@@ -20,6 +18,7 @@ services:
   # ==================== VERİ KATMANI (DATA LAYER) ====================
   postgres:
     image: postgres:16-alpine
+    container_name: sentiric_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -38,11 +37,11 @@ services:
       timeout: 5s
       retries: 5
     profiles:
-      - "data"
-      - "default"
+      - "data" # Bu servis 'data' profilinde çalışır.
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
+    container_name: sentiric_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
@@ -60,115 +59,87 @@ services:
       timeout: 10s
       retries: 3
     profiles:
-      - "data"
-      - "default"
+      - "data" # Bu servis 'data' profilinde çalışır.
 
   # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    env_file:
-      - ./.env    
+    container_name: sentiric_sip_gateway
+    env_file: ./.env
     ports:
       - "${EXTERNAL_SIP_PORT}:5060/udp"
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "telekom"
-      - "default"
+      - "telekom" # Bu servis 'telekom' profilinde çalışır.
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
-    # ports:
-    #   - "${EXTERNAL_SIP_PORT}:5060/udp"
-    env_file:
-      - ./.env       
+    container_name: sentiric_sip_signaling
+    env_file: ./.env
     environment:
       - SIP_HOST=0.0.0.0
       - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
       - PUBLIC_IP=${PUBLIC_IP}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - RABBITMQ_URL=${RABBITMQ_URL}
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "telekom"
-      - "default"
+      - "telekom" # Bu servis 'telekom' profilinde çalışır.
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
-    env_file:
-      - ./.env
-    # Ana .env dosyasından PUBLIC_IP'yi alır (opsiyonel ama iyi pratik)
+    container_name: sentiric_media_service
+    env_file: ./.env
     environment:
       - PUBLIC_IP=${PUBLIC_IP}
     ports:
-      # Dış RTP port aralığını, içerideki aynı aralığa yönlendiriyoruz.
       - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}/udp"
-      # gRPC portunu test için dışarı açmak gerekebilir
       - "50052:50052"
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "telekom"
-      - "default"
+      - "telekom" # Bu servis 'telekom' profilinde çalışır.
 
   # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
-    environment:
-      - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${INTERNAL_GRPC_PORT_USER}
+    container_name: sentiric_user_service
+    env_file: ./.env
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "app"
-      - "default"
+      - "app" # Bu servis 'app' profilinde çalışır.
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
-    environment:
-      - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${INTERNAL_GRPC_PORT_DIALPLAN}
+    container_name: sentiric_dialplan_service
+    env_file: ./.env
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "app"
-      - "default"
+      - "app" # Bu servis 'app' profilinde çalışır.
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    env_file:
-      - ./.env
-    environment:
-      - RABBITMQ_URL=${RABBITMQ_URL}
-      - DATABASE_URL=${POSTGRES_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
-      - LLM_SERVICE_URL=${LLM_SERVICE_URL}
+    container_name: sentiric_agent_service
+    env_file: ./.env
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "app"
-      - "default"
+      - "app" # Bu servis 'app' profilinde çalışır.
 
   llm-service:
     image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
-    env_file:
-      - ./.env
-    environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    container_name: sentiric_llm_service
+    env_file: ./.env
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
-      - "ai" # AI servisleri için yeni bir profil oluşturalım
-      - "default"      
+      - "ai" # Bu servis 'ai' profilinde çalışır.
