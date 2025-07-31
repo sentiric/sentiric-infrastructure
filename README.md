@@ -53,7 +53,7 @@ sentiric-infrastructure/
 ### İmajları Çekme
 ```bash
 # Tüm servislerin en son imajlarını çeker
-sudo docker compose -f docker-compose.prod.yml pull
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default up -d
 ```
 
 ### Sistemi Başlatma (Profil Tabanlı)
@@ -66,11 +66,14 @@ sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --
 
 # Telekom Katmanını Ekle
 sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile telekom up -d
+
+# Ai Katmanını Ekle
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile ai up -d
 ```
 
 ### Sistemi Durdurma
 ```bash
-sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml down
+sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml --profile default down
 ```
 
 ### Logları İzleme
@@ -98,6 +101,9 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml --profile ap
 
 # Telekom Katmanını Ekle
 docker compose -f docker-compose.yml -f docker-compose.override.yml --profile telekom up -d
+
+# Ai Katmanını Ekle
+docker compose -f docker-compose.yml -f docker-compose.override.yml --profile ai up -d
 ```
 
 ### Sistemi Durdurma
