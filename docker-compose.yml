@@ -155,7 +155,7 @@ services:
       - "default"
 
   agent-service:
-    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
+    build: ../sentiric-agent-service  
     env_file:
       - ./.env
     environment:
@@ -173,7 +173,7 @@ services:
       - "default"
 
   llm-service:
-    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
+    build: ../sentiric-llm-service
     env_file:
       - ./.env
     environment:
