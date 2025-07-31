@@ -81,3 +81,35 @@ sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml lo
 # Sadece belirli bir servisin loglarını izle (örn: agent-service)
 sudo docker compose -f docker-compose.prod.yml -f docker-compose.override.yml logs -f agent-service
 ```
+
+## Geliştirme ortamı
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml --profile default up -d --build
+```
+
+### Sistemi Başlatma (Profil Tabanlı)
+```bash
+# Sadece Veri Katmanını Başlat
+docker compose -f docker-compose.yml -f docker-compose.override.yml --profile data up -d
+
+# Uygulama Katmanını Ekle
+docker compose -f docker-compose.yml -f docker-compose.override.yml --profile app up -d
+
+# Telekom Katmanını Ekle
+docker compose -f docker-compose.yml -f docker-compose.override.yml --profile telekom up -d
+```
+
+### Sistemi Durdurma
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml down
+```
+
+### Logları İzleme
+```bash
+# Tüm servislerin loglarını canlı olarak izle
+docker compose -f docker-compose.yml -f docker-compose.override.yml logs -f
+
+# Sadece belirli bir servisin loglarını izle (örn: agent-service)
+docker compose -f docker-compose.yml -f docker-compose.override.yml logs -f agent-service
+```

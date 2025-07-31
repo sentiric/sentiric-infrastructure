@@ -107,7 +107,7 @@ services:
       - PUBLIC_IP=${PUBLIC_IP}
     ports:
       # Dış RTP port aralığını, içerideki aynı aralığa yönlendiriyoruz.
-      - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10600}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10600}/udp"
+      - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}/udp"
       # gRPC portunu test için dışarı açmak gerekebilir
       - "50052:50052"
     networks:
@@ -144,18 +144,31 @@ services:
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    # BU BÖLÜMÜ EKLEYİN/GÜNCELLEYİN
     env_file:
       - ./.env
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL} # Bu da gerekli olacak
       - DATABASE_URL=${POSTGRES_URL}
-    # BİTTİ
+      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
+      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
+      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
+      - LLM_SERVICE_URL=${LLM_SERVICE_URL}
     networks:
       - sentiric-net
     restart: unless-stopped
     profiles:
       - "app"
       - "default"
+
+  llm-service:
+    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    profiles:
+      - "ai" # AI servisleri için yeni bir profil oluşturalım
+      - "default"      

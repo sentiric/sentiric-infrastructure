@@ -33,3 +33,7 @@ services:
   sip-signaling:
     mem_limit: 200m
     cpus: 0.25
+
+  llm-service:
+    mem_limit: 512m # Python ve AI kütüphaneleri daha fazla belleğe ihtiyaç duyabilir
+    cpus: 0.5    
