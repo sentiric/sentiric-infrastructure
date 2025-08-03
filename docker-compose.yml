@@ -1,186 +1,181 @@
+# docker-compose.yml
 
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
-    driver: ${NETWORK_DRIVER:-bridge}
+    driver: bridge
 
 volumes:
   postgres_data:
   rabbitmq_data:
-  redis_data:
-  mongodb_data:
 
 services:
   # VERİ KATMANI
   postgres:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - ./.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
+    # ports:
+    #   - "${POSTGRES_DB_PORT}:${POSTGRES_DB_PORT}"
     networks:
       - sentiric-net
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     profiles:
-      - "data"
-      - "default"
+      - default
+      - data
+    restart: always
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq/
-    networks:
-      - sentiric-net
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    profiles:
-      - "data"
-      - "default"
-  
-  # # AĞ GEÇİTLERİ
-  sip-gateway:
-    build: ../sentiric-sip-gateway-service
-    env_file:
-      - ./.env    
-    ports:
-      - "${EXTERNAL_SIP_PORT}:5060/udp"
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    # depends_on:
-    #   - sip-signaling
-    profiles:
-      - "telekom"
-      - "default"
-
-  sip-signaling:
-    build: ../sentiric-sip-signaling-service
-    # ports:
-    #   - "${EXTERNAL_SIP_PORT}:5060/udp"
-    env_file:
-      - ./.env         
-    environment:
-      - SIP_HOST=0.0.0.0
-      - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
-      - PUBLIC_IP=${PUBLIC_IP}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - RABBITMQ_URL=${RABBITMQ_URL}
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    # YENİ EKLENEN BÖLÜM:
-    # Bu servis, diğer üç temel servisin de sağlıklı olmasını beklemeli.
-    depends_on:
-      user-service:
-        condition: service_started # Go servisleri hızlı başlar
-      dialplan-service:
-        condition: service_started
-      media-service:
-        condition: service_started # Rust servisi de hızlı başlar
-    profiles:
-      - "telekom"
-      - "default"
-
-  media-service:
-    build: ../sentiric-media-service
-    # Bu servis için özel .env dosyasını yükler
     env_file:
       - ./.env
-    # Ana .env dosyasından PUBLIC_IP'yi alır (opsiyonel ama iyi pratik)
-    environment:
-      - PUBLIC_IP=${PUBLIC_IP}
-    ports:
-      # Dış RTP port aralığını, içerideki aynı aralığa yönlendiriyoruz.
-      - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}/udp"
-      # gRPC portunu test için dışarı açmak gerekebilir
-      - "50052:50052"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    # ports:
+    #   - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+    #   - "15672:15672"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "telekom"
-      - "default"
+      - default
+      - data
+    restart: always
 
   # UYGULAMA SERVİSLERİ
   user-service:
-    build: ../sentiric-user-service
-    environment:
-      - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${INTERNAL_GRPC_PORT_USER}
+    build:
+      context: ../sentiric-user-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-user-service
+    env_file:
+      - ./.env
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    # ports:
+    #   - "${USER_SERVICE_GRPC_PORT}:${USER_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
     profiles:
-      - "app"
-      - "default"
-
-  dialplan-service:
-    build: ../sentiric-dialplan-service
-    environment:
-      - DATABASE_URL=${POSTGRES_URL}
-      - GRPC_PORT=${INTERNAL_GRPC_PORT_DIALPLAN}
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
-    profiles:
-      - "app"
-      - "default"
+      - default
+      - app
+    restart: always
 
   agent-service:
-    build: ../sentiric-agent-service  
+    build:
+      context: ../sentiric-agent-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-agent-service
     env_file:
       - ./.env
-    environment:
-      - RABBITMQ_URL=${RABBITMQ_URL}
-      - DATABASE_URL=${POSTGRES_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
-      - LLM_SERVICE_URL=${LLM_SERVICE_URL}
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    # ports:
+    #   - "${AGENT_SERVICE_GRPC_PORT}:${AGENT_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "app"
-      - "default"
+      - default
+      - app
+    restart: always
 
-  llm-service:
-    build: ../sentiric-llm-service
+  dialplan-service:
+    build:
+      context: ../sentiric-dialplan-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-dialplan-service
     env_file:
       - ./.env
-    environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    # ports:
+    #   - "${DIALPLAN_SERVICE_GRPC_PORT}:${DIALPLAN_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "ai" # AI servisleri için yeni bir profil oluşturalım
-      - "default"      
+      - default
+      - app
+    restart: always
+
+  media-service:
+    build:
+      context: ../sentiric-media-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-media-service
+    env_file:
+      - ./.env
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    ports:
+      - "${RTP_SERVICE_PORT_MIN:-10000}-${RTP_SERVICE_PORT_MAX:-10100}:${RTP_SERVICE_PORT_MIN:-10000}-${RTP_SERVICE_PORT_MAX:-10100}/udp"
+      # - "${MEDIA_SERVICE_GRPC_PORT}:${MEDIA_SERVICE_GRPC_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  # AĞ GEÇİTLERİ
+  sip-signaling:
+    build:
+      context: ../sentiric-sip-signaling-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-sip-signaling-service
+    env_file:
+      - ./.env
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    # ports:
+    #   - "${SIP_SIGNALING_SERVICE_PORT}:${SIP_SIGNALING_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  sip-gateway:
+    build:
+      context: ../sentiric-sip-gateway-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-sip-gateway-service
+    env_file:
+      - ./.env
+    # volumes:
+    #   - ./tls/certs:/etc/sentiric/tls:ro
+    ports:
+      - "5060:${SIP_GATEWAY_SERVICE_PORT}/udp"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  # AI SERVİSLERİ
+  llm-service:
+    build:
+      context: ../sentiric-llm-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-llm-service
+    env_file:
+      - ./.env
+    # volumes:
+    #   - ./tls/certs:/etc/sentiric/tls:ro
+    # ports:
+    #   - "${LLM_SERVICE_PORT}:${LLM_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ai
+    restart: always

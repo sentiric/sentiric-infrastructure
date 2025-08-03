@@ -1,4 +1,5 @@
 # docker-compose.override.yml - e2-micro için optimize edilmiş hali
+
 services:
   postgres:
     mem_limit: 256m
@@ -8,7 +9,6 @@ services:
     mem_limit: 256m
     cpus: 0.3
 
-  # Go servislerinin başlangıç belleğini artırıyoruz
   user-service:
     mem_limit: 200m
     cpus: 0.25
@@ -17,7 +17,6 @@ services:
     mem_limit: 200m
     cpus: 0.25
 
-  # Diğer servisler için limitler
   agent-service:
     mem_limit: 200m
     cpus: 0.25
@@ -35,5 +34,5 @@ services:
     cpus: 0.25
 
   llm-service:
-    mem_limit: 512m # Python ve AI kütüphaneleri daha fazla belleğe ihtiyaç duyabilir
-    cpus: 0.5    
+    mem_limit: 512m
+    cpus: 0.5

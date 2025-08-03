@@ -41,3 +41,5 @@ terraform.rc
 configs/local/
 configs/prod/
 *.secret
+
+tls/certs/

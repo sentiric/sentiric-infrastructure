@@ -1,145 +1,139 @@
-# ====================================================================
-#          SENTIRIC PLATFORMU - ÜRETİM ORKESTRASYONU (v2.0 - Profil Tabanlı)
-# ====================================================================
-# Bu dosya, tüm servisleri tanımlar ve profiller aracılığıyla
-# hangi servisin nerede çalışacağını yönetir.
-# ====================================================================
+# docker-compose.prod.yml
 
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
-    driver: ${NETWORK_DRIVER:-bridge}
+    driver: bridge
 
 volumes:
   postgres_data:
   rabbitmq_data:
 
 services:
-  # ==================== VERİ KATMANI (DATA LAYER) ====================
+  # VERİ KATMANI
   postgres:
     image: postgres:16-alpine
-    container_name: sentiric_postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - ./.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
+    # ports:
+    #   - "${POSTGRES_DB_PORT}:${POSTGRES_DB_PORT}"
     networks:
       - sentiric-net
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     profiles:
-      - "data" # Bu servis 'data' profilinde çalışır.
+      - default
+      - data
+    restart: always
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric_rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    env_file:
+      - ./.env
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
+    # ports:
+    #   - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+    #   - "15672:15672"
     networks:
       - sentiric-net
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     profiles:
-      - "data" # Bu servis 'data' profilinde çalışır.
+      - default
+      - data
+    restart: always
 
-  # ==================== AĞ GEÇİTLERİ (TELEKOM LAYER) ====================
-  sip-gateway:
-    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    container_name: sentiric_sip_gateway
-    env_file: ./.env
-    ports:
-      - "${EXTERNAL_SIP_PORT}:5060/udp"
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    profiles:
-      - "telekom" # Bu servis 'telekom' profilinde çalışır.
-
-  sip-signaling:
-    image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
-    container_name: sentiric_sip_signaling
-    env_file: ./.env
-    environment:
-      - SIP_HOST=0.0.0.0
-      - SIP_PORT=${INTERNAL_SIP_SIGNALING_PORT}
-      - PUBLIC_IP=${PUBLIC_IP}
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    profiles:
-      - "telekom" # Bu servis 'telekom' profilinde çalışır.
-
-  media-service:
-    image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
-    container_name: sentiric_media_service
-    env_file: ./.env
-    environment:
-      - PUBLIC_IP=${PUBLIC_IP}
-    ports:
-      - "${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}:${EXTERNAL_RTP_PORT_MIN:-10000}-${EXTERNAL_RTP_PORT_MAX:-10100}/udp"
-      - "50052:50052"
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    profiles:
-      - "telekom" # Bu servis 'telekom' profilinde çalışır.
-
-  # ==================== UYGULAMA SERVİSLERİ (APP LAYER) ====================
+  # UYGULAMA SERVİSLERİ
   user-service:
-    image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
-    container_name: sentiric_user_service
-    env_file: ./.env
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-user-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${USER_SERVICE_GRPC_PORT}:${USER_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "app" # Bu servis 'app' profilinde çalışır.
-
-  dialplan-service:
-    image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
-    container_name: sentiric_dialplan_service
-    env_file: ./.env
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-    profiles:
-      - "app" # Bu servis 'app' profilinde çalışır.
+      - default
+      - app
+    restart: always
 
   agent-service:
-    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    container_name: sentiric_agent_service
-    env_file: ./.env
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-agent-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${AGENT_SERVICE_GRPC_PORT}:${AGENT_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "app" # Bu servis 'app' profilinde çalışır.
+      - default
+      - app
+    restart: always
 
-  llm-service:
-    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
-    container_name: sentiric_llm_service
-    env_file: ./.env
+  dialplan-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-dialplan-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${DIALPLAN_SERVICE_GRPC_PORT}:${DIALPLAN_SERVICE_GRPC_PORT}"
     networks:
       - sentiric-net
-    restart: unless-stopped
     profiles:
-      - "ai" # Bu servis 'ai' profilinde çalışır.
+      - default
+      - app
+    restart: always
+
+  media-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-media-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    ports:
+      - "${RTP_SERVICE_PORT_MIN:-10000}-${RTP_SERVICE_PORT_MAX:-10100}:${RTP_SERVICE_PORT_MIN:-10000}-${RTP_SERVICE_PORT_MAX:-10100}/udp"
+      # - "${MEDIA_SERVICE_GRPC_PORT}:${MEDIA_SERVICE_GRPC_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  # AĞ GEÇİTLERİ
+  sip-signaling:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-sip-signaling-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${SIP_SIGNALING_SERVICE_PORT}:${SIP_SIGNALING_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  sip-gateway:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-sip-gateway-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${SIP_GATEWAY_SERVICE_PORT}:5060/udp"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - telekom
+    restart: always
+
+  # AI SERVİSLERİ
+  llm-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-llm-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${LLM_SERVICE_PORT}:${LLM_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ai
+    restart: always
