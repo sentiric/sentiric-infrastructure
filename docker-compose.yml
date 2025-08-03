@@ -127,7 +127,7 @@ services:
       context: ../sentiric-sip-signaling-service
       dockerfile: Dockerfile
       args:
-        SERVICE_NAME: sentiric-sip-signaling-service
+        SERVICE_NAME: sentiric-sip-signaling
     env_file:
       - ./.env
     volumes:
@@ -146,7 +146,7 @@ services:
       context: ../sentiric-sip-gateway-service
       dockerfile: Dockerfile
       args:
-        SERVICE_NAME: sentiric-sip-gateway-service
+        SERVICE_NAME: sentiric-sip-gateway
     env_file:
       - ./.env
     # volumes:
