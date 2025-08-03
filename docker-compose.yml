@@ -1,4 +1,4 @@
-# docker-compose.yml
+# docker-compose.yml (Güncellenmiş Hali)
 
 networks:
   sentiric-net:
@@ -19,13 +19,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
     # ports:
-    #   - "${POSTGRES_DB_PORT}:${POSTGRES_DB_PORT}"
+    #   - "${POSTGRES_DB_PORT}:${POSTGRES_DB_PORT}"      
     networks:
       - sentiric-net
     profiles:
       - default
       - data
     restart: always
+    # YENİ EKLENEN KISIM
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
@@ -35,13 +41,19 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq/
     # ports:
     #   - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
-    #   - "15672:15672"
+    #   - "15672:15672"      
     networks:
       - sentiric-net
     profiles:
       - default
       - data
     restart: always
+    # YENİ EKLENEN KISIM
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # UYGULAMA SERVİSLERİ
   user-service:
@@ -62,6 +74,10 @@ services:
       - default
       - app
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   agent-service:
     build:
@@ -81,6 +97,12 @@ services:
       - default
       - app
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   dialplan-service:
     build:
@@ -100,6 +122,10 @@ services:
       - default
       - app
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   media-service:
     build:
@@ -120,6 +146,12 @@ services:
       - default
       - telekom
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      user-service:
+        condition: service_started # media-service'in DB'ye direkt bağımlılığı yok, user-service'in başlaması yeterli
+      dialplan-service:
+        condition: service_started
 
   # AĞ GEÇİTLERİ
   sip-signaling:
@@ -140,6 +172,16 @@ services:
       - default
       - telekom
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      dialplan-service:
+        condition: service_started
+      media-service:
+        condition: service_started
 
   sip-gateway:
     build:
@@ -159,6 +201,10 @@ services:
       - default
       - telekom
     restart: always
+    # YENİ EKLENEN KISIM
+    depends_on:
+      sip-signaling:
+        condition: service_started
 
   # AI SERVİSLERİ
   llm-service:
@@ -179,3 +225,7 @@ services:
       - default
       - ai
     restart: always
+    # YENİ EKLENEN KISIM (LLM'in bir bağımlılığı yok, ama en son başlaması mantıklı)
+    depends_on:
+      agent-service:
+        condition: service_started
