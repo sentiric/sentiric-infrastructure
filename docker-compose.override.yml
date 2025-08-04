@@ -36,3 +36,7 @@ services:
   llm-service:
     mem_limit: 512m
     cpus: 0.5
+
+  tts-service: # <-- YENİ EKLENEN
+    mem_limit: 512m
+    cpus: 0.5    

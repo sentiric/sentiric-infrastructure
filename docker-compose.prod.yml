@@ -137,3 +137,16 @@ services:
       - default
       - ai
     restart: always
+
+  tts-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-tts-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${TTS_SERVICE_PORT}:${TTS_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ai
+    restart: always    
