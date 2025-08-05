@@ -127,6 +127,30 @@ services:
       postgres:
         condition: service_healthy
 
+  api-gateway:
+    build:
+      context: ../sentiric-api-gateway-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+    volumes:
+      - ./tls/certs:/etc/sentiric/tls:ro
+    ports:
+      # API_GATEWAY_SERVICE_PORT ortam değişkenini .env dosyasında 8080 olarak ayarlayacağız
+      - "${API_GATEWAY_SERVICE_PORT}:${API_GATEWAY_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - app
+    restart: always
+    depends_on:
+      user-service:
+        condition: service_started
+      # Gelecekte eklenecek diğer servisler...
+      # dialplan-service:
+      #   condition: service_started        
+
   media-service:
     build:
       context: ../sentiric-media-service

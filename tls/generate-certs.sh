@@ -33,7 +33,7 @@ openssl req -new -x509 -sha256 -days 3650 -key ca.key -out ca.crt -config ca.cnf
 
 echo "2. Servis sertifikaları oluşturuluyor..."
 
-for SERVICE in postgres rabbitmq user-service agent-service dialplan-service media-service sip-signaling sip-gateway llm-service cdr-service knowledge-service marketplace-service messaging-gateway stt-service task-service tts-service web-agent-ui
+for SERVICE in postgres rabbitmq user-service agent-service dialplan-service media-service sip-signaling sip-gateway llm-service api-gateway cdr-service knowledge-service marketplace-service messaging-gateway stt-service task-service tts-service web-agent-ui
 do
   echo "--- $SERVICE için sertifika oluşturuluyor ---"
   

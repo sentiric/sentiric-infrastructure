@@ -83,6 +83,25 @@ services:
       - app
     restart: always
 
+  api-gateway:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-api-gateway-service:${TAG:-latest}  
+    env_file:
+      - ./.env
+    ports:
+      - "${API_GATEWAY_SERVICE_PORT}:${API_GATEWAY_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - app
+    restart: always
+    depends_on:
+      user-service:
+        condition: service_started
+      # Gelecekte eklenecek diğer servisler...
+      # dialplan-service:
+      #   condition: service_started        
+
   media-service:
     image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-media-service:${TAG:-latest}
     env_file:
