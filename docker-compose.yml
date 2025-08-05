@@ -14,7 +14,7 @@ services:
   postgres:
     image: postgres:16-alpine
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
@@ -36,7 +36,7 @@ services:
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
     # ports:
@@ -63,7 +63,7 @@ services:
       args:
         SERVICE_NAME: sentiric-user-service
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     # ports:
@@ -86,7 +86,7 @@ services:
       args:
         SERVICE_NAME: sentiric-agent-service
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     # ports:
@@ -111,7 +111,7 @@ services:
       args:
         SERVICE_NAME: sentiric-dialplan-service
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     # ports:
@@ -132,7 +132,7 @@ services:
       context: ../sentiric-api-gateway-service
       dockerfile: Dockerfile
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     ports:
@@ -158,7 +158,7 @@ services:
       args:
         SERVICE_NAME: sentiric-media-service
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     ports:
@@ -177,6 +177,114 @@ services:
       dialplan-service:
         condition: service_started
 
+  cdr-service:
+    build:
+      context: ../sentiric-cdr-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-cdr-service
+    env_file:
+      - ./.env.docker
+    volumes:
+      - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+    ports:
+      # Metriklerin Prometheus tarafından okunabilmesi için
+      # - "${METRICS_PORT:-9092}:${METRICS_PORT:-9092}"    
+      - "${CDR_SERVICE_PORT}:${CDR_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - app
+      - default
+    restart: always
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy   
+
+  connectors-service:
+
+    build:
+      context: ../sentiric-connectors-service
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-connectors-service
+
+    env_file: 
+      - ./.env.docker
+
+    volumes:
+      - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+
+    # ports:
+    #   - "${CONNECTOR_SERVICE_PORT}:${CONNECTOR_SERVICE_PORT}"
+
+    networks:
+      - sentiric-net
+
+    profiles:
+      - default
+      - app # Bu servisi 'app' profiline dahil ediyoruz      
+      
+    restart: always
+
+    depends_on:
+      postgres:
+        condition: service_healthy      
+
+  dashboard-ui:
+    build:
+      context: ../sentiric-dashboard-ui
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-dashboard-ui
+    env_file:
+      - ./.env.docker
+    volumes:
+      - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+    ports:
+      - "${DASHBOARD_UI_PORT}:80"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ui
+    restart: always
+
+  web-agent-ui:       
+
+    build:
+      context: ../sentiric-web-agent-ui
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: sentiric-web-agent-ui
+
+    env_file:
+      - ./.env.docker
+
+    # volumes:
+    #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+
+    ports:
+      - "${WEB_AGENT_UI_PORT}:80"
+
+    networks:
+      - sentiric-net
+    
+    profiles:
+      - default
+      - ui
+
+    restart: always
+
+  # DÜZELTME: Bu arayüzün çalışması için şu anlık bir backend
+  # bağımlılığı yok. Gelecekte api-gateway'e bağımlı olacak.
+  # Şimdilik depends_on'u kaldırarak daha basit bir başlangıç yapalım.
+  # depends_on:
+  #   - api-gateway-service                   
+
   # AĞ GEÇİTLERİ
   sip-signaling:
     build:
@@ -185,7 +293,7 @@ services:
       args:
         SERVICE_NAME: sentiric-sip-signaling
     env_file:
-      - ./.env
+      - ./.env.docker
     volumes:
       - ./tls/certs:/etc/sentiric/tls:ro
     # ports:
@@ -214,7 +322,7 @@ services:
       args:
         SERVICE_NAME: sentiric-sip-gateway
     env_file:
-      - ./.env
+      - ./.env.docker
     # volumes:
     #   - ./tls/certs:/etc/sentiric/tls:ro
     ports:
@@ -238,7 +346,7 @@ services:
       args:
         SERVICE_NAME: sentiric-llm-service
     env_file:
-      - ./.env
+      - ./.env.docker
     # volumes:
     #   - ./tls/certs:/etc/sentiric/tls:ro
     # ports:
@@ -261,7 +369,7 @@ services:
       args:
         SERVICE_NAME: sentiric-tts-service
     env_file:
-      - ./.env
+      - ./.env.docker
     # volumes:
     #   - ./tls/certs:/etc/sentiric/tls:ro # tts-service şimdilik mTLS kullanmıyor
     # ports:

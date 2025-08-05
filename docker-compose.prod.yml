@@ -116,6 +116,65 @@ services:
       - telekom
     restart: always
 
+  cdr-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-cdr-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   # Metriklerin Prometheus tarafından okunabilmesi için
+    #   - "${METRICS_PORT:-9092}:${METRICS_PORT:-9092}"    
+    #   - "${CDR_SERVICE_PORT}:${CDR_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - app
+    restart: always
+
+  connectors-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-connectors-service:${TAG:-latest}
+    env_file:
+      - ./.env
+    # ports:
+    #   - "${CONNECTOR_SERVICE_PORT}:${CONNECTOR_SERVICE_PORT}"
+
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - app
+    restart: always   
+
+  dashboard-ui:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-connectors-service:${TAG:-latest}
+
+    env_file:
+      - ./.env
+
+    # ports:
+    #   - "${DASHBOARD_UI_PORT}:80"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ui
+    restart: always          
+
+  web-agent-ui:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-web-agent-ui:${TAG:-latest}
+
+    env_file:
+      - ./.env
+
+    # ports:
+    #   - "${WEB_AGENT_UI_PORT}:80"
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ui
+    restart: always    
+
   # AĞ GEÇİTLERİ
   sip-signaling:
     image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-sip-signaling-service:${TAG:-latest}
