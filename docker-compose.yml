@@ -419,3 +419,30 @@ services:
     depends_on:
       agent-service: # agent-service TTS'i kullandığı için onun başlamasını bekleyelim
         condition: service_started        
+
+
+  stt-service:       
+
+      build:
+        context: ../sentiric-stt-service
+        dockerfile: Dockerfile
+        args:
+          SERVICE_NAME: sentiric-stt-service
+
+      env_file: 
+        - ./.env.docker
+
+      # volumes:
+      #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+
+      # ports:
+      #   - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
+
+      networks:
+        - sentiric-net
+      
+      profiles:
+        - default
+        - ai
+
+      restart: always        

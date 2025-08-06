@@ -189,7 +189,27 @@ services:
     profiles:
       - default
       - ui
-    restart: always    
+    restart: always  
+
+  knowledge-service:
+    
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-knowledge-service:${TAG:-latest}
+
+    env_file:
+      - ./.env
+    
+    # YENİ: Yerel 'data' klasörünü container içindeki '/app/data' klasörüne bağlıyoruz.
+    volumes:
+      - ./data:/app/data
+
+    # ports:
+    #   - "5055:5055" # .env dosyasındaki port ile tutarlı olsun
+    networks:
+      - sentiric-net
+    profiles:
+      - default
+      - ai
+    restart: always          
 
   # AĞ GEÇİTLERİ
   sip-signaling:
@@ -244,3 +264,25 @@ services:
       - default
       - ai
     restart: always    
+
+  stt-service:       
+
+      image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-stt-service:${TAG:-latest} 
+
+      env_file: 
+        - ./.env
+
+      # volumes:
+      #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+
+      # ports:
+      #   - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
+
+      networks:
+        - sentiric-net
+      
+      profiles:
+        - default
+        - ai
+
+      restart: always  
