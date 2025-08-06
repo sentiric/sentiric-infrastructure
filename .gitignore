@@ -43,3 +43,5 @@ configs/prod/
 *.secret
 
 tls/certs/
+
+data/

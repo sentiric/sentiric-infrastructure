@@ -203,7 +203,7 @@ services:
       - ./data:/app/data
 
     # ports:
-    #   - "5055:5055" # .env dosyasındaki port ile tutarlı olsun
+    #   - "${KNOWLEDGE_SERVICE_PORT}:${KNOWLEDGE_SERVICE_PORT}"
     networks:
       - sentiric-net
     profiles:
