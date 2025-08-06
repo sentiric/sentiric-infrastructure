@@ -81,3 +81,85 @@ INSERT INTO inbound_routes (phone_number, tenant_id, active_dialplan_id, failsaf
 ON CONFLICT (phone_number) DO NOTHING;
 \echo '✅ Tablo 5/5: "inbound_routes" oluşturuldu.'
 \echo '🚀 Veritabanı "Genesis Bloğu" v1.1 başarıyla oluşturuldu.'
+
+
+-- =================================================================
+-- KNOWLEDGE SERVICE İÇİN VERİ KAYNAKLARI
+-- =================================================================
+
+-- Her tenant'ın bilgi kaynaklarını tanımlayan tablo
+CREATE TABLE datasources (
+    id SERIAL PRIMARY KEY,
+    tenant_id VARCHAR(255) NOT NULL,
+    source_type VARCHAR(50) NOT NULL, -- 'file', 'web', 'postgres'
+    source_uri TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_indexed_at TIMESTAMPTZ
+);
+
+-- Örnek tenant'lar için veri kaynakları
+INSERT INTO datasources (tenant_id, source_type, source_uri) VALUES
+('acme_corp', 'file', 'acme_specs.md'),
+('acme_corp', 'web', 'https://requests.readthedocs.io/en/latest/'),
+('beta_health', 'file', 'beta_faq.txt'),
+('beta_health', 'postgres', 'medical_services');
+
+
+-- Beta Health tenant'ı için örnek bir tıbbi hizmetler tablosu
+CREATE TABLE medical_services (
+    id SERIAL PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price NUMERIC(10, 2)
+);
+
+-- Bu tabloyu örnek verilerle dolduralım
+INSERT INTO medical_services (service_name, description, price) VALUES
+('Genel Muayene', 'Uzman doktor tarafından genel sağlık kontrolü ve ilk teşhis.', 500.00),
+('Diş Beyazlatma', 'Lazer teknolojisi ile profesyonel diş beyazlatma işlemi.', 1500.00),
+('Psikolojik Danışmanlık', 'Lisanslı psikolog ile 50 dakikalık bireysel terapi seansı.', 750.00),
+('Acil Servis Başvurusu', '7/24 acil durumlar için müdahale hizmeti.', 800.00);
+
+
+--
+
+-- =================================================================
+-- SENTIRIC GENESIS DEMO İÇİN VERİ KAYNAKLARI
+-- =================================================================
+
+INSERT INTO datasources (tenant_id, source_type, source_uri) VALUES
+-- Tenant 1: Beta Health (Hastane Randevu & Acil Durum)
+('beta_health', 'postgres', 'medical_services'), -- DB'den hizmetleri öğrenir
+('beta_health', 'file', 'beta_emergency_protocol.md'), -- Dosyadan acil durum protokolünü öğrenir
+
+-- Tenant 2: Sunshine Hotel (Otel Rezervasyonu)
+('sunshine_hotel', 'file', 'sunshine_hotel_info.md'), -- Dosyadan otel bilgilerini öğrenir
+
+-- Tenant 3: Napoli Pizza (Paket Servis)
+('napoli_pizza', 'file', 'napoli_pizza_menu.txt'), -- Dosyadan menüyü öğrenir
+
+-- Tenant 4: Sentiric Destek (Sanal Santral & Şikayet Yönetimi)
+('sentiric_support', 'web', 'https://fastapi.tiangolo.com/'), -- CANLI WEB SİTESİ: FastAPI dokümanları
+('sentiric_support', 'file', 'sentiric_complaint_policy.txt'), -- Dosyadan şikayet politikasını öğrenir
+
+-- Tenant 5: Biletix Demo (Etkinlik ve Bilet Bilgisi)
+('biletix_demo', 'postgres', 'events'); -- DB'den etkinlikleri öğrenir
+
+
+-- Biletix Demo için yeni bir tablo ve veriler
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    event_name VARCHAR(255) NOT NULL,
+    venue VARCHAR(255),
+    event_date DATE,
+    ticket_price NUMERIC(10, 2)
+);
+
+INSERT INTO events (event_name, venue, event_date, ticket_price) VALUES
+('Rock Konseri', 'Zorlu PSM', '2025-09-15', 750.00),
+('Caz Gecesi', 'Nardis Jazz Club', '2025-09-22', 450.00),
+('Stand-up Gösterisi', 'BKM Mutfak', '2025-10-01', 300.00);
+
+-- "Genesis Demo" için yeni bir tenant
+INSERT INTO datasources (tenant_id, source_type, source_uri) VALUES
+('antalya_concierge', 'google_travel', 'Antalya');

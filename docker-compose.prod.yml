@@ -8,6 +8,7 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
+  qdrant_data:
 
 services:
   # VERİ KATMANI
@@ -42,6 +43,21 @@ services:
       - default
       - data
     restart: always
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    env_file:
+      - ./.env.docker    
+    ports:
+      - "6333:6333"
+    networks:
+      - sentiric-net
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: always
+    profiles:
+      - default
+      - data       
 
   # UYGULAMA SERVİSLERİ
   user-service:
