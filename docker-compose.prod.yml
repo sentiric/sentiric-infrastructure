@@ -313,29 +313,36 @@ services:
 
   task-service:
     image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest} 
+
+    container_name: task-service-api
+    hostname: task-service-api
+        
     env_file:
       - ./.env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
-    ports:
-      - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+    # ports:
+    #   - "${TASK_SERVICE_PORT:-5003}:5003"
     networks:
       - sentiric-net
-
     restart: unless-stopped
-
     # depends_on:
-    #   - rabbitmq
-    #   - redis    
+    #   rabbitmq:
+    #     condition: service_healthy # KRİTİK DEĞİŞİKLİK
+    #   redis:
+    #     condition: service_healthy # KRİTİK DEĞİŞİKLİK
 
   task-service-worker:
     image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest} 
+
+    container_name: task-service-worker
+    hostname: task-service-worker
+
     env_file:
       - ./.env
     
-    user: "1000:1000"
-
+    user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
-    
+
     networks:
       - sentiric-net
     

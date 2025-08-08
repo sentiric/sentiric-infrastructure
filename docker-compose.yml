@@ -482,39 +482,46 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+
+    container_name: task-service
+    hostname: task-service      
+
     env_file:
       - ./.env.docker
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
     ports:
-      - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+      - "${TASK_SERVICE_PORT:-5003}:5003"
     networks:
       - sentiric-net
-
     restart: unless-stopped
-
     depends_on:
-      - rabbitmq
-      - redis    
+      rabbitmq:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
+      redis:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK     
 
   task-service-worker:
     build:
       context: .
       dockerfile: Dockerfile
+
+    container_name: task-service-worker
+    hostname: task-service-worker
+
     env_file:
       - ./.env.docker
     
-    user: "1000:1000"
-
+    user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
     
     networks:
       - sentiric-net
-    
     restart: unless-stopped
-
     depends_on:
-          - rabbitmq
-          - redis
+      rabbitmq:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
+      redis:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
         
   flower:
     image: mher/flower
