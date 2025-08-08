@@ -5,11 +5,12 @@ networks:
     name: ${NETWORK_NAME:-sentiric-net}
     driver: bridge
 
-# volumes:
+volumes:
   # postgres_data:
   # rabbitmq_data:
   # qdrant_data:
   # redis-data:
+  stt-model-cache:
 
 services:
   # VERİ KATMANI
@@ -292,8 +293,11 @@ services:
       env_file: 
         - ./.env
 
-      # volumes:
-      #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+      volumes:
+        # YENİ: Model cache'ini host makineye bağlıyoruz
+        - stt-model-cache:/root/.cache      
+        # mTLS aktif edildiğinde bu satırları açacağız
+        # - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
 
       # ports:
       #   - "${STT_SERVICE_PORT}:${STT_SERVICE_PORT}"
