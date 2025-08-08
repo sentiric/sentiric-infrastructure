@@ -10,7 +10,8 @@ volumes:
   rabbitmq_data:
   qdrant_data:
   redis-data:
-  stt-model-cache:  
+  stt-model-cache:
+  whatsapp_session:  
 
 services:
   # VERİ KATMANI
@@ -536,4 +537,25 @@ services:
     restart: unless-stopped
 
     depends_on:
-      - rabbitmq    
+      - rabbitmq
+
+  messaging-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: messaging-gateway
+    hostname: messaging-gateway
+    env_file:
+      - ./.env.docker
+    # WhatsApp oturumunu kalıcı hale getirmek için volume ekliyoruz
+    volumes:
+      - whatsapp_session:/app/wweb_auth
+    networks:
+      - sentiric-net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped    
+
+    profiles:
+      - default      
