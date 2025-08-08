@@ -477,3 +477,56 @@ services:
         timeout: 10s
         retries: 3
         start_period: 60s # Modelin yüklenmesi için ek süre tanıyoruz
+
+  task-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env.docker
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
+    ports:
+      - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+
+    restart: unless-stopped
+
+    depends_on:
+      - rabbitmq
+      - redis    
+
+  task-service-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env.docker
+    
+    user: "1000:1000"
+
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
+    
+    networks:
+      - sentiric-net
+    
+    restart: unless-stopped
+
+    depends_on:
+          - rabbitmq
+          - redis
+        
+  flower:
+    image: mher/flower
+    environment:
+      - CELERY_BROKER_URL=${RABBITMQ_URL}
+      - FLOWER_PORT=5555
+    ports:
+      - "5555:5555"
+    networks:
+      - sentiric-net
+
+    restart: unless-stopped
+
+    depends_on:
+      - rabbitmq    

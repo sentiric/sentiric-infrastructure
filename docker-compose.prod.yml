@@ -309,4 +309,53 @@ services:
         - default
         - ai
 
-      restart: always  
+      restart: always
+
+  task-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest} 
+    env_file:
+      - ./.env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
+    ports:
+      - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+    networks:
+      - sentiric-net
+
+    restart: unless-stopped
+
+    # depends_on:
+    #   - rabbitmq
+    #   - redis    
+
+  task-service-worker:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest} 
+    env_file:
+      - ./.env
+    
+    user: "1000:1000"
+
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
+    
+    networks:
+      - sentiric-net
+    
+    restart: unless-stopped
+
+    # depends_on:
+    #       - rabbitmq
+    #       - redis
+        
+  flower:
+    image: mher/flower
+    environment:
+      - CELERY_BROKER_URL=${RABBITMQ_URL}
+      - FLOWER_PORT=5555
+    ports:
+      - "5555:5555"
+    networks:
+      - sentiric-net
+
+    restart: unless-stopped
+
+    depends_on:
+      - rabbitmq    
