@@ -1,3 +1,10 @@
+# ======================================================================
+#             ÜRETİM/DAĞITIM ODAKLI DOCKER COMPOSE DOSYASI
+# ======================================================================
+# Bu dosya, servisleri kaynak koddan 'build' ETMEZ.
+# Bunun yerine, ghcr.io'dan hazır imajları 'image:' direktifi ile çeker.
+# TAG ortam değişkeni ile belirli bir versiyon (örn: v1.2.0) çekilebilir.
+# ======================================================================
 version: '3.9'
 
 networks:
@@ -69,11 +76,9 @@ services:
     networks: [sentiric-net]
     restart: always
 
-  # --- GO & RUST SERVİSLERİ (ENVIRONMENT İLE) ---
+  # --- GO & RUST SERVİSLERİ ---
   user-service:
-    build:
-      context: ../sentiric-user-service
-      args: { SERVICE_NAME: sentiric-user-service }
+    image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
     container_name: sentiric-user-service-1
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
@@ -88,9 +93,7 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   dialplan-service:
-    build:
-      context: ../sentiric-dialplan-service
-      args: { SERVICE_NAME: sentiric-dialplan-service }
+    image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
     container_name: sentiric-dialplan-service-1
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
@@ -105,9 +108,7 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   agent-service:
-    build:
-      context: ../sentiric-agent-service
-      args: { SERVICE_NAME: sentiric-agent-service }
+    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
     container_name: sentiric-agent-service-1
     environment:
       - ENV=${ENV}
@@ -135,9 +136,7 @@ services:
       rabbitmq: { condition: service_healthy }
 
   api-gateway:
-    build:
-      context: ../sentiric-api-gateway-service
-      args: { SERVICE_NAME: sentiric-api-gateway-service }
+    image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest}
     container_name: sentiric-api-gateway-1
     environment:
       - API_GATEWAY_SERVICE_PORT=${API_GATEWAY_SERVICE_PORT}
@@ -153,9 +152,7 @@ services:
     depends_on: [user-service, dialplan-service]
 
   cdr-service:
-    build:
-      context: ../sentiric-cdr-service
-      args: { SERVICE_NAME: sentiric-cdr-service }
+    image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest}
     container_name: sentiric-cdr-service-1
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
@@ -171,9 +168,7 @@ services:
       rabbitmq: { condition: service_healthy }
 
   media-service:
-    build:
-      context: ../sentiric-media-service
-      args: { SERVICE_NAME: sentiric-media-service }
+    image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
     container_name: sentiric-media-service-1
     environment:
       - MEDIA_SERVICE_GRPC_PORT=${MEDIA_SERVICE_GRPC_PORT}
@@ -193,9 +188,7 @@ services:
     depends_on: [user-service, dialplan-service]
 
   sip-signaling:
-    build:
-      context: ../sentiric-sip-signaling-service
-      args: { SERVICE_NAME: sentiric-sip-signaling }
+    image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
     container_name: sentiric-sip-signaling-1
     environment:
       - SIP_SIGNALING_SERVICE_PORT=5060
@@ -216,23 +209,21 @@ services:
       media-service: { condition: service_started }
 
   sip-gateway:
-    build:
-      context: ../sentiric-sip-gateway-service
-      args: { SERVICE_NAME: sentiric-sip-gateway }
+    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
     container_name: sentiric-sip-gateway-1
     environment:
       - SIP_GATEWAY_SERVICE_PORT=${SIP_GATEWAY_SERVICE_PORT}
-      - SIP_SIGNALING_SERVICE_HOST=sip-signaling
-      - SIP_SIGNALING_SERVICE_PORT=5060
+      - SIP_SIGNALING_SERVICE_HOST=${SIP_SIGNALING_SERVICE_HOST}
+      - SIP_SIGNALING_SERVICE_PORT=${SIP_SIGNALING_SERVICE_PORT}
       - ENV=${ENV}
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:5060/udp"]
     networks: [sentiric-net]
     restart: always
     depends_on: [sip-signaling]
 
-  # --- NODE.JS & PYTHON SERVİSLERİ (ENV_FILE İLE) ---
+  # --- NODE.JS & PYTHON SERVİSLERİ ---
   connectors-service:
-    build: { context: ../sentiric-connectors-service }
+    image: ghcr.io/sentiric/sentiric-connectors-service:${TAG:-latest}
     container_name: sentiric-connectors-service-1
     env_file: ../sentiric-config/environments/${ENV}.env
     ports: ["${CONNECTOR_SERVICE_PORT:-5005}:5005"]
@@ -241,7 +232,7 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   task-service:
-    build: { context: ../sentiric-task-service }
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
     container_name: sentiric-task-service-api-1
     env_file: ../sentiric-config/environments/${ENV}.env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
@@ -251,7 +242,7 @@ services:
     depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
 
   task-service-worker:
-    build: { context: ../sentiric-task-service }
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
     container_name: sentiric-task-service-worker-1
     env_file: ../sentiric-config/environments/${ENV}.env
     user: "sentiric_user"
@@ -261,7 +252,7 @@ services:
     depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
 
   flower:
-    build: { context: ../sentiric-task-service }
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
     container_name: sentiric-flower-1
     env_file: ../sentiric-config/environments/${ENV}.env
     command: ["celery", "-A", "app.core.celery_app", "--broker=${RABBITMQ_URL}", "flower"]
@@ -273,7 +264,7 @@ services:
       task-service-worker: { condition: service_started }
 
   llm-service:
-    build: { context: ../sentiric-llm-service }
+    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
     container_name: sentiric-llm-service-1
     env_file: ../sentiric-config/environments/${ENV}.env
     networks: [sentiric-net]
@@ -281,7 +272,7 @@ services:
     depends_on: [agent-service]
 
   stt-service:
-    build: { context: ../sentiric-stt-service }
+    image: ghcr.io/sentiric/sentiric-stt-service:${TAG:-latest}
     container_name: sentiric-stt-service-1
     env_file: ../sentiric-config/environments/${ENV}.env
     volumes: [stt-model-cache:/root/.cache]
@@ -295,7 +286,7 @@ services:
       start_period: 120s
 
   tts-service:
-    build: { context: ../sentiric-tts-service }
+    image: ghcr.io/sentiric/sentiric-tts-service:${TAG:-latest}
     container_name: sentiric-tts-service-1
     env_file: ../sentiric-config/environments/${ENV}.env
     networks: [sentiric-net]
@@ -303,7 +294,7 @@ services:
     depends_on: [agent-service]
 
   knowledge-service:
-    build: { context: ../sentiric-knowledge-service }
+    image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest}
     container_name: sentiric-knowledge-service-1
     env_file: ../sentiric-config/environments/${ENV}.env
     ports: ["${KNOWLEDGE_SERVICE_PORT:-50055}:50055"]
@@ -315,7 +306,7 @@ services:
       qdrant: { condition: service_started }
 
   messaging-gateway:
-    build: { context: ../sentiric-messaging-gateway-service }
+    image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
     container_name: sentiric-messaging-gateway-1
     env_file: ../sentiric-config/environments/${ENV}.env
     volumes: [whatsapp_session:/app/wweb_auth]
@@ -325,7 +316,7 @@ services:
 
   # --- UI SERVİSLERİ ---
   dashboard-ui:
-    build: { context: ../sentiric-dashboard-ui }
+    image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
     container_name: sentiric-dashboard-ui-1
     env_file: ../sentiric-config/environments/${ENV}.env
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
@@ -334,7 +325,7 @@ services:
     depends_on: [api-gateway]
 
   web-agent-ui:
-    build: { context: ../sentiric-web-agent-ui }
+    image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
     container_name: sentiric-web-agent-ui-1
     env_file: ../sentiric-config/environments/${ENV}.env
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
