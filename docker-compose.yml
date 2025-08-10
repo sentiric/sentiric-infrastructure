@@ -14,112 +14,174 @@ volumes:
   whatsapp_session:
 
 services:
-  # --- VERİ KATMANI (data) ---
+  # --- VERİ KATMANI ---
   postgres:
     image: postgres:16-alpine
+    container_name: sentiric-postgres-1
+    # --- DEĞİŞİKLİK BURADA ---
+    # Kritik başlangıç değişkenlerini doğrudan environment altına alıyoruz.
+    # Değerler, --env-file ile verdiğimiz dosyadan okunacak.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # --- DEĞİŞİKLİK BİTTİ ---
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
     networks: [sentiric-net]
-    profiles: [data]
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources: { limits: { cpus: '0.5', memory: 512M } }
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
+    container_name: sentiric-rabbitmq-1
+    # --- DEĞİŞİKLİK BURADA ---
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    # --- DEĞİŞİKLİK BİTTİ ---
+    ports: ["15672:15672"]
     volumes: [rabbitmq_data:/var/lib/rabbitmq/]
     networks: [sentiric-net]
-    profiles: [data]
     restart: always
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources: { limits: { cpus: '0.5', memory: 512M } }
+
 
   redis:
     image: redis:7-alpine
+    container_name: sentiric-redis-1
     volumes: [redis_data:/data]
     networks: [sentiric-net]
-    profiles: [data]
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources: { limits: { cpus: '0.3', memory: 256M } }
 
   qdrant:
     image: qdrant/qdrant:latest
+    container_name: sentiric-qdrant-1
+    ports: ["${VECTOR_DB_PORT:-6333}:6333"]
     volumes: [qdrant_data:/qdrant/storage]
     networks: [sentiric-net]
-    profiles: [data]
     restart: always
-    deploy:
-      resources: { limits: { cpus: '0.5', memory: 1G } }
 
-  # --- UYGULAMA SERVİSLERİ (app) ---
+  # --- UYGULAMA SERVİSLERİ ---
   user-service:
-    build: { context: ../sentiric-user-service }
+    build: 
+      context: ../sentiric-user-service
+      args: { SERVICE_NAME: sentiric-user-service }
+    container_name: sentiric-user-service-1
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
-    profiles: [app]
     restart: always
     depends_on: { postgres: { condition: service_healthy } }
-    deploy:
-      resources: { limits: { cpus: '0.25', memory: 200M } }
 
   dialplan-service:
-    build: { context: ../sentiric-dialplan-service }
+    build: 
+      context: ../sentiric-dialplan-service
+      args: { SERVICE_NAME: sentiric-dialplan-service }
+    container_name: sentiric-dialplan-service-1
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
-    profiles: [app]
     restart: always
     depends_on: { postgres: { condition: service_healthy } }
-    deploy:
-      resources: { limits: { cpus: '0.25', memory: 200M } }
-  
+
   agent-service:
-    build: { context: ../sentiric-agent-service }
+    build: 
+      context: ../sentiric-agent-service
+      args: { SERVICE_NAME: sentiric-agent-service }
+    container_name: sentiric-agent-service-1
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    ports: ["${METRICS_PORT:-9091}:9091"]
     networks: [sentiric-net]
-    profiles: [app]
     restart: always
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
-    deploy:
-      resources: { limits: { cpus: '0.5', memory: 256M } }
 
-  # ... (Diğer tüm uygulama servisleri için benzer bloklar eklenecek)
-  # Örnek:
   api-gateway:
-    build: { context: ../sentiric-api-gateway-service }
+    build: 
+      context: ../sentiric-api-gateway-service
+      args: { SERVICE_NAME: sentiric-api-gateway-service }
+    container_name: sentiric-api-gateway-1
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
     networks: [sentiric-net]
-    profiles: [app]
     restart: always
-    depends_on: [user-service, dialplan-service]
-    deploy:
-      resources: { limits: { cpus: '0.25', memory: 200M } }
+    depends_on: 
+      - user-service
+      - dialplan-service
 
-  # --- AI SERVİSLERİ (ai) ---
+  cdr-service:
+    build: 
+      context: ../sentiric-cdr-service
+      args: { SERVICE_NAME: sentiric-cdr-service }
+    container_name: sentiric-cdr-service-1
+    ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  connectors-service:
+    build: { context: ../sentiric-connectors-service }
+    container_name: sentiric-connectors-service-1
+    ports: ["${CONNECTOR_SERVICE_PORT:-5005}:5005"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: { postgres: { condition: service_healthy } }
+
+  task-service:
+    build: { context: ../sentiric-task-service }
+    container_name: sentiric-task-service-api-1
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
+    ports: ["${TASK_SERVICE_PORT:-5003}:5003"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  task-service-worker:
+    build: { context: ../sentiric-task-service }
+    container_name: sentiric-task-service-worker-1
+    user: "sentiric_user"
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  flower:
+    image: mher/flower
+    container_name: sentiric-flower-1
+    ports: ["${FLOWER_PORT:-5555}:5555"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [rabbitmq, task-service-worker]
+
+  # --- AI SERVİSLERİ ---
+  llm-service:
+    build: { context: ../sentiric-llm-service }
+    container_name: sentiric-llm-service-1
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [agent-service]
+
   stt-service:
     build: { context: ../sentiric-stt-service }
+    container_name: sentiric-stt-service-1
     volumes: [stt-model-cache:/root/.cache]
     networks: [sentiric-net]
-    profiles: [ai]
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
@@ -127,18 +189,91 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
-    deploy:
-      resources: { limits: { cpus: '1.0', memory: 2G } }
 
   tts-service:
     build: { context: ../sentiric-tts-service }
+    container_name: sentiric-tts-service-1
     networks: [sentiric-net]
-    profiles: [ai]
     restart: always
-    deploy:
-      resources:
-        limits: { cpus: '2.0', memory: 6G }
-        reservations:
-          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+    depends_on: [agent-service]
+    # --- DEĞİŞİKLİK BURADA ---
+    # GPU isteği bloğunu tamamen siliyoruz veya yorum satırı yapıyoruz.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+  
+  knowledge-service:
+    build: { context: ../sentiric-knowledge-service }
+    container_name: sentiric-knowledge-service-1
+    ports: ["${KNOWLEDGE_SERVICE_PORT:-50055}:50055"]
+    volumes: ["./data:/app/data"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      qdrant: { condition: service_started }
 
-  # ... (Diğer tüm AI, Telekom ve UI servisleri bu mantıkla eklenecek)
+  # --- TELEKOM & AĞ GEÇİTLERİ ---
+  media-service:
+    build: 
+      context: ../sentiric-media-service
+      args: { SERVICE_NAME: sentiric-media-service }
+    container_name: sentiric-media-service-1
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    # --- BURASI DÜZELTİLDİ ---
+    # Docker'a diyoruz ki: Host'taki ${RTP_SERVICE_PORT_MIN} ile ${RTP_SERVICE_PORT_MAX} 
+    # arasındaki port aralığını, konteyner içindeki AYNI port aralığına yönlendir.
+    ports:
+      - "${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"
+    # --- DÜZELTME BİTTİ ---
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [user-service, dialplan-service]
+
+  sip-signaling:
+    build: 
+      context: ../sentiric-sip-signaling-service
+      args: { SERVICE_NAME: sentiric-sip-signaling }
+    container_name: sentiric-sip-signaling-1
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      media-service: { condition: service_started }
+
+  sip-gateway:
+    build: 
+      context: ../sentiric-sip-gateway-service
+      args: { SERVICE_NAME: sentiric-sip-gateway }
+    container_name: sentiric-sip-gateway-1
+    ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:5060/udp"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [sip-signaling]
+
+  messaging-gateway:
+    build: { context: ../sentiric-messaging-gateway-service }
+    container_name: sentiric-messaging-gateway-1
+    volumes: [whatsapp_session:/app/wweb_auth]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: { rabbitmq: { condition: service_healthy } }
+
+  # --- UI SERVİSLERİ ---
+  dashboard-ui:
+    build: { context: ../sentiric-dashboard-ui }
+    container_name: sentiric-dashboard-ui-1
+    ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [api-gateway]
+
+  web-agent-ui:
+    build: { context: ../sentiric-web-agent-ui }
+    container_name: sentiric-web-agent-ui-1
+    ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on: [api-gateway]
