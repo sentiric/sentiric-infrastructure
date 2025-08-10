@@ -1,0 +1,144 @@
+version: '3.9'
+
+networks:
+  sentiric-net:
+    name: ${NETWORK_NAME:-sentiric-net}
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  qdrant_data:
+  redis_data:
+  stt-model-cache:
+  whatsapp_session:
+
+services:
+  # --- VERİ KATMANI (data) ---
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
+    networks: [sentiric-net]
+    profiles: [data]
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources: { limits: { cpus: '0.5', memory: 512M } }
+
+  rabbitmq:
+    image: rabbitmq:4.1.0-management-alpine
+    volumes: [rabbitmq_data:/var/lib/rabbitmq/]
+    networks: [sentiric-net]
+    profiles: [data]
+    restart: always
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources: { limits: { cpus: '0.5', memory: 512M } }
+
+  redis:
+    image: redis:7-alpine
+    volumes: [redis_data:/data]
+    networks: [sentiric-net]
+    profiles: [data]
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources: { limits: { cpus: '0.3', memory: 256M } }
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes: [qdrant_data:/qdrant/storage]
+    networks: [sentiric-net]
+    profiles: [data]
+    restart: always
+    deploy:
+      resources: { limits: { cpus: '0.5', memory: 1G } }
+
+  # --- UYGULAMA SERVİSLERİ (app) ---
+  user-service:
+    build: { context: ../sentiric-user-service }
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    networks: [sentiric-net]
+    profiles: [app]
+    restart: always
+    depends_on: { postgres: { condition: service_healthy } }
+    deploy:
+      resources: { limits: { cpus: '0.25', memory: 200M } }
+
+  dialplan-service:
+    build: { context: ../sentiric-dialplan-service }
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    networks: [sentiric-net]
+    profiles: [app]
+    restart: always
+    depends_on: { postgres: { condition: service_healthy } }
+    deploy:
+      resources: { limits: { cpus: '0.25', memory: 200M } }
+  
+  agent-service:
+    build: { context: ../sentiric-agent-service }
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    networks: [sentiric-net]
+    profiles: [app]
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    deploy:
+      resources: { limits: { cpus: '0.5', memory: 256M } }
+
+  # ... (Diğer tüm uygulama servisleri için benzer bloklar eklenecek)
+  # Örnek:
+  api-gateway:
+    build: { context: ../sentiric-api-gateway-service }
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
+    networks: [sentiric-net]
+    profiles: [app]
+    restart: always
+    depends_on: [user-service, dialplan-service]
+    deploy:
+      resources: { limits: { cpus: '0.25', memory: 200M } }
+
+  # --- AI SERVİSLERİ (ai) ---
+  stt-service:
+    build: { context: ../sentiric-stt-service }
+    volumes: [stt-model-cache:/root/.cache]
+    networks: [sentiric-net]
+    profiles: [ai]
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources: { limits: { cpus: '1.0', memory: 2G } }
+
+  tts-service:
+    build: { context: ../sentiric-tts-service }
+    networks: [sentiric-net]
+    profiles: [ai]
+    restart: always
+    deploy:
+      resources:
+        limits: { cpus: '2.0', memory: 6G }
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+  # ... (Diğer tüm AI, Telekom ve UI servisleri bu mantıkla eklenecek)

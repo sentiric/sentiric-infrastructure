@@ -1,0 +1,3 @@
+# Yapılandırma ve sırlar asla commit'lenmesin
+.env
+sentiric-config/
