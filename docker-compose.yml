@@ -216,17 +216,23 @@ services:
         condition: service_healthy
 
   flower:
-    image: mher/flower
+    # Artık mher/flower imajını değil, task-service'in imajını kullanıyoruz.
+    build:
+      context: ../sentiric-task-service
     container_name: sentiric-flower-1
     env_file: ../sentiric-config/environments/${ENV}.env
+    # Komut, Celery uygulamasını ve broker'ı işaret ederek Flower'ı başlatıyor.
+    command: ["celery", "-A", "app.core.celery_app", "--broker=${RABBITMQ_URL}", "flower"]
     ports:
       - "${FLOWER_PORT:-5555}:5555"
     networks:
       - sentiric-net
     restart: always
     depends_on:
-      - rabbitmq
-      - task-service-worker
+      rabbitmq:
+        condition: service_healthy
+      task-service-worker:
+        condition: service_started
 
   # --- AI SERVİSLERİ ---
   llm-service:
