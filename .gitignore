@@ -1,3 +1,5 @@
-# Yapılandırma ve sırlar asla commit'lenmesin
+# .gitignore
 .env
+.env.*
 sentiric-config/
+.env.generated # Bu dosyayı asla commit'leme
