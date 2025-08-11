@@ -14,7 +14,7 @@ CONFIG_REPO_PATH := ../sentiric-config
 SOURCE_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
 TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
-
+DETECTED_IP := 34.122.40.122
 # --- Komutlar ---
 
 # Yerel geliştirme için (kaynak koddan inşa eder)

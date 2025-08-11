@@ -1,5 +1,3 @@
-version: '3.9'
-
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
@@ -22,6 +20,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5432:5432"]      
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
@@ -195,7 +194,7 @@ services:
   sip-signaling:
     build:
       context: ../sentiric-sip-signaling-service
-      args: { SERVICE_NAME: sentiric-sip-signaling }
+      args: { SERVICE_NAME: sentiric-sip-signaling-service }
     container_name: sentiric-sip-signaling-1
     environment:
       - SIP_SIGNALING_SERVICE_PORT=5060
@@ -218,7 +217,7 @@ services:
   sip-gateway:
     build:
       context: ../sentiric-sip-gateway-service
-      args: { SERVICE_NAME: sentiric-sip-gateway }
+      args: { SERVICE_NAME: sentiric-sip-gateway-service }
     container_name: sentiric-sip-gateway-1
     environment:
       - SIP_GATEWAY_SERVICE_PORT=${SIP_GATEWAY_SERVICE_PORT}
@@ -294,46 +293,45 @@ services:
       retries: 3
       start_period: 120s
 
-# --- YENİ SES ORKESTRASYON KATMANI ---
-  tts-gateway:
-    build: { context: ../sentiric-tts-gateway }
-    container_name: sentiric-tts-gateway-1
-    # DİKKAT: Henüz bir env dosyası yok, environment direkt olarak verilecek
-    environment:
-      - ENV=${ENV}
-      - LOG_LEVEL=${LOG_LEVEL}
-      - RUST_LOG=${RUST_LOG}
-      - REDIS_URL=${REDIS_URL}
-      - EDGE_TTS_URL=http://edge-tts-service:5002
-      - COQUI_TTS_URL=http://coqui-tts-service:5002
-      - ELEVENLABS_TTS_URL=http://elevenlabs-tts-service:5002
-    ports: ["${TTS_GATEWAY_PORT:-50051}:50051"] # gRPC portu
-    networks: [sentiric-net]
-    restart: always
-    depends_on: { redis: { condition: service_healthy } }
+  # --- YENİ SES ORKESTRASYON KATMANI --- [ Dockerfile hazır değil ]
+  # tts-gateway:
+  #   build: { context: ../sentiric-tts-gateway-service }
+  #   container_name: sentiric-tts-gateway-1
+  #   environment:
+  #     - ENV=${ENV}
+  #     - LOG_LEVEL=${LOG_LEVEL}
+  #     - RUST_LOG=${RUST_LOG}
+  #     - REDIS_URL=${REDIS_URL}
+  #     - EDGE_TTS_URL=http://edge-tts-service:5002
+  #     - COQUI_TTS_URL=http://coqui-tts-service:5002
+  #     - ELEVENLABS_TTS_URL=http://elevenlabs-tts-service:5002
+  #   ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   depends_on: { redis: { condition: service_healthy } }
 
-  edge-tts-service:
-    build: { context: ../sentiric-edge-tts-service }
-    container_name: sentiric-edge-tts-1
-    env_file: ../sentiric-config/environments/${ENV}.env
-    networks: [sentiric-net]
-    restart: always
+  # edge-tts-service:
+  #   build: { context: ../sentiric-edge-tts-service }
+  #   container_name: sentiric-edge-tts-1
+  #   env_file: ../sentiric-config/environments/${ENV}.env
+  #   networks: [sentiric-net]
+  #   restart: always
   
-  coqui-tts-service:
-    build: { context: ../sentiric-coqui-tts-service }
-    container_name: sentiric-coqui-tts-1
-    env_file: ../sentiric-config/environments/${ENV}.env
-    networks: [sentiric-net]
-    restart: always
+  # coqui-tts-service:
+  #   build: { context: ../sentiric-coqui-tts-service }
+  #   container_name: sentiric-coqui-tts-1
+  #   env_file: ../sentiric-config/environments/${ENV}.env
+  #   networks: [sentiric-net]
+  #   restart: always
 
-  tts-service:
-    build: { context: ../sentiric-tts-service }
-    container_name: sentiric-tts-service-1
-    env_file: ../sentiric-config/environments/${ENV}.env
-    networks: [sentiric-net]
-    restart: always
-    depends_on: [agent-service]
-
+  # --- DEĞİŞİKLİK BURADA: tts-service'i yorum satırı yapıyoruz ---
+  # tts-service:
+  #   build: { context: ../sentiric-tts-service }
+  #   container_name: sentiric-tts-service-1
+  #   env_file: ../sentiric-config/environments/${ENV}.env
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   depends_on: [agent-service]
   knowledge-service:
     build: { context: ../sentiric-knowledge-service }
     container_name: sentiric-knowledge-service-1
