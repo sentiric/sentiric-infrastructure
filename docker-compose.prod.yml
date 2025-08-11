@@ -191,7 +191,7 @@ services:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
     container_name: sentiric-sip-signaling-1
     environment:
-      - SIP_SIGNALING_SERVICE_PORT=5060
+      - SIP_SIGNALING_SERVICE_PORT=${SIP_SIGNALING_SERVICE_PORT:-5060} # Varsayılan değer ekleyelim
       - PUBLIC_IP=${PUBLIC_IP}
       - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
       - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
@@ -201,6 +201,10 @@ services:
       - SIP_SIGNALING_SERVICE_KEY_PATH=${SIP_SIGNALING_SERVICE_KEY_PATH}
       - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
       - ENV=${ENV}
+    # --- YENİ EKLENEN BÖLÜM ---
+    ports:
+      - "${SIP_SIGNALING_SERVICE_PORT:-5060}:5060/udp"
+    # --- BİTTİ ---
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
