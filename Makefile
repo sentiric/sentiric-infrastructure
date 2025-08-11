@@ -1,8 +1,13 @@
-# Makefile - Sentiric Platform Orkestratörü v5.0 (En Basit ve Güvenilir)
+# Makefile - Sentiric Platform Orkestratörü v5.1 (Açık ve Net Komutlar)
 
 # --- Yapılandırma ---
+# Kullanım: make [hedef] ENV=[ortam] [SERVICES="servis1 servis2..."]
+# Örn: make deploy ENV=gcp_gateway_only SERVICES="sip-gateway"
+# Örn: make logs SERVICES="agent-service rabbitmq"
+
 ENV ?= development
 TAG ?= latest
+SERVICES ?=
 
 # --- Dosya Yolları ---
 CONFIG_REPO_PATH := ../sentiric-config
@@ -10,55 +15,50 @@ SOURCE_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
 TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
 
-# --- TEMEL KOMUTLAR ---
+# --- Komutlar ---
 
-# Tüm platformu YEREL KAYNAK KODDAN inşa eder ve çalıştırır.
-# Kullanım: make up
+# Yerel geliştirme için (kaynak koddan inşa eder)
 up: generate-env
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml up -d --build --remove-orphans
+	@echo "▶️  Yerel geliştirme ortamı başlatılıyor: $(if $(SERVICES),$(SERVICES),all services)"
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml up -d --build --remove-orphans $(SERVICES)
 
-# Tüm platformu HAZIR İMAJLARI ÇEKEREK çalıştırır. Önce PULL eder.
-# Kullanım: make deploy
+# Dağıtım için (hazır imajları çeker)
 deploy: generate-env
 	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile dağıtılıyor..."
-	@echo "--- Adım 1/2: Tüm imajlar güncelleniyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml pull
-	@echo "--- Adım 2/2: Tüm konteynerler başlatılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml up -d --remove-orphans
+	@echo "--- Adım 1/2: İmajlar güncelleniyor: $(if $(SERVICES),$(SERVICES),all services)"
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml pull $(SERVICES)
+	@echo "--- Adım 2/2: Konteynerler bağımlılıklar olmadan başlatılıyor..."
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml up -d --remove-orphans --no-deps $(SERVICES)
 
-# Sadece GCP Gateway'i dağıtır.
-# Kullanım: make deploy-gateway
+# Sadece GCP Gateway'i dağıtır
 deploy-gateway:
-	@make _run_specific ENV=gcp_gateway_only SERVICE=sip-gateway
+	@$(MAKE) deploy ENV=gcp_gateway_only SERVICES="sip-gateway"
 
-# Sadece WSL Çekirdek Servislerini dağıtır.
-# Kullanım: make deploy-core
+# Sadece WSL Çekirdek Servislerini dağıtır
 deploy-core:
-	@make _run_specific ENV=wsl_core_services SERVICE="postgres rabbitmq redis qdrant user-service dialplan-service media-service sip-signaling agent-service"
+	@$(MAKE) deploy ENV=wsl_core_services SERVICES="postgres rabbitmq redis qdrant user-service dialplan-service media-service sip-signaling agent-service"
 
-# Belirli servisleri dağıtmak için dahili hedef (doğrudan kullanmayın)
-_run_specific: generate-env
-	@echo "🚀 '$(ENV)' ortamı için '$(SERVICE)' servis(ler)i dağıtılıyor..."
-	@echo "--- Adım 1/2: İlgili imajlar güncelleniyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml pull $(SERVICE)
-	@echo "--- Adım 2/2: Konteyner(ler) bağımlılıklar olmadan başlatılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml up -d --remove-orphans --no-deps $(SERVICE)
-
-# Diğer komutlar
+# Sistemi durdurmak için
 down: generate-env
 	@echo "🛑 Platform durduruluyor..."
-	@# 'down' her iki dosyayı da kontrol ederek tüm olası konteynerleri durdurur.
 	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml down --volumes
 	@echo "🧹 Geçici yapılandırma dosyası ($(TARGET_ENV_FILE)) temizleniyor..."
 	@rm -f $(TARGET_ENV_FILE)
 
+# Logları izlemek için
 logs: generate-env
-	@echo "📜 Loglar izleniyor... (Ctrl+C ile çık)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml logs -f $(filter-out $@,$(MAKECMDGOALS))
+	@echo "📜 Loglar izleniyor: $(if $(SERVICES),$(SERVICES),all services)... (Ctrl+C ile çık)"
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml logs -f $(SERVICES)
 
+# Konteyner durumunu görmek için
 ps: generate-env
 	@echo "📊 Konteyner durumu:"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml ps $(filter-out $@,$(MAKECMDGOALS))
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml ps $(SERVICES)
+
+# İmajları çekmek için
+pull: generate-env
+	@echo "🔄 İmajlar çekiliyor: $(if $(SERVICES),$(SERVICES),all services)"
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml pull $(SERVICES)
 
 
 # --- Yardımcı Komutlar (DEĞİŞİKLİK YOK) ---
@@ -73,7 +73,7 @@ generate-env: sync-config
 	fi
 	@echo "\n# --- Makefile tarafından dinamik olarak eklendi ---" >> $(TARGET_ENV_FILE)
 	@echo "PUBLIC_IP=$(DETECTED_IP)" >> $(TARGET_ENV_FILE)
-	@echo "TAG=$(TAG)" >> $(TAG)
+	@echo "TAG=$(TAG)" >> $(TARGET_ENV_FILE)
 
 sync-config:
 	@if [ ! -d "$(CONFIG_REPO_PATH)" ]; then \
@@ -88,4 +88,4 @@ sync-config:
 		exit 1; \
 	fi
 
-.PHONY: up deploy deploy-gateway deploy-core down logs ps generate-env sync-config _run_specific
+.PHONY: up deploy deploy-gateway deploy-core down logs ps pull generate-env sync-config
