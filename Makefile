@@ -1,4 +1,4 @@
-# Makefile - Sentiric Platform Orkestratörü v4.1 (Hibrit Dağıtım Destekli)
+# Makefile - Sentiric Platform Orkestratörü v4.2 (Otomatik Güncelleme Destekli)
 
 # --- Yapılandırma ---
 # MODE: 'local' (kaynak koddan inşa eder) veya 'deploy' (hazır imajları çeker)
@@ -15,7 +15,6 @@ TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
 
 # --- Dinamik Komut Seçimi ---
-# MODE'a göre kullanılacak docker-compose dosyasını seç
 ifeq ($(MODE), local)
 	COMPOSE_FILE := docker-compose.yml
 else
@@ -30,21 +29,24 @@ local-up:
 	@make up MODE=local ENV=development
 
 # Hazır imajları kullanarak dağıtım yapmak için komut
+# Bu komut artık önce imajları günceller, sonra sistemi başlatır.
 # Kullanım: make deploy ENV=gcp_gateway_only sip-gateway
 deploy:
 	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile başlatılıyor..."
+	@echo "--- Adım 1/2: İmajlar güncelleniyor..."
+	@make pull MODE=deploy
+	@echo "--- Adım 2/2: Konteynerler başlatılıyor..."
 	@make up MODE=deploy
 
 # Hazır imajları yerel makineye indirmek için komut
 # Kullanım: make pull TAG=v1.1.0
 pull:
-	@echo "🔄 Gerekli tüm imajlar ghcr.io'dan çekiliyor (TAG: $(TAG))..."
 	@make generate-env > /dev/null 2>&1 || true
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f docker-compose.prod.yml pull
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) pull $(filter-out $@,$(MAKECMDGOALS))
 
 # --- Çekirdek Komutlar (Diğerleri tarafından kullanılır) ---
 up: generate-env
-	@echo "▶️  Çalıştırılıyor: docker compose -f $(COMPOSE_FILE) up -d --build --remove-orphans $(filter-out $@,$(MAKECMDGOALS))"
+	@# 'up' komutuna --build eklemek, prod dosyasında build bloğu varsa onu tetikler, yoksa zararsızdır.
 	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) up -d --build --remove-orphans $(filter-out $@,$(MAKECMDGOALS))
 
 down:
@@ -55,9 +57,9 @@ down:
 	@rm -f $(TARGET_ENV_FILE)
 
 # --- Yardımcı Komutlar ---
+# ... (generate-env, sync-config, logs, ps hedefleri aynı kalabilir, aşağıya kopyalıyorum) ...
 generate-env: sync-config
 	@echo "🔧 Dinamik yapılandırma dosyası ($(TARGET_ENV_FILE)) oluşturuluyor..."
-	@# Önce development.env'yi temel olarak kopyala (eğer hedef dosya development değilse)
 	@if [ "$(ENV)" != "development" ]; then \
 		cp "$(CONFIG_REPO_PATH)/environments/development.env" $(TARGET_ENV_FILE); \
 		echo "\n# --- $(ENV).env tarafından üzerine yazılan değerler ---" >> $(TARGET_ENV_FILE); \
@@ -91,5 +93,6 @@ ps:
 	@echo "📊 Konteyner durumu:"
 	@make generate-env > /dev/null 2>&1 || true
 	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) ps
+
 
 .PHONY: local-up deploy up down pull logs ps generate-env sync-config
