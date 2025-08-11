@@ -36,7 +36,7 @@ deploy-gateway:
 
 # Sadece WSL Çekirdek Servislerini dağıtır
 deploy-core:
-	@$(MAKE) deploy ENV=wsl_core_services SERVICES="postgres rabbitmq redis qdrant user-service dialplan-service media-service sip-signaling agent-service"
+	@$(MAKE) deploy ENV=wsl_core_services SERVICES="postgres rabbitmq redis qdrant user-service dialplan-service media-service sip-signaling agent-service llm-service tts-service"
 
 # Sistemi durdurmak için
 down: generate-env
