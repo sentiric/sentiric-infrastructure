@@ -4,16 +4,18 @@
 [![Orchestration](https://img.shields.io/badge/orchestration-Docker_Compose_&_Make-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
-Bu depo, Sentiric "İletişim İşletim Sistemi" platformunun **merkezi orkestrasyon ve dağıtım merkezidir**. "Kod Olarak Altyapı" (Infrastructure as Code - IaC) prensiplerini kullanarak, tüm Sentiric mikroservislerinin ve bağımlı altyapı bileşenlerinin (PostgreSQL, RabbitMQ, Redis vb.) tek bir komutla ayağa kaldırılmasını, yönetilmesini ve yapılandırılmasını sağlar.
+Bu depo, Sentiric "İletişim İşletim Sistemi" platformunun **merkezi orkestrasyon ve dağıtım merkezidir**. "Kod Olarak Altyapı" (Infrastructure as Code - IaC) prensiplerini kullanarak, tüm Sentiric mikroservislerinin ve bağımlı altyapı bileşenlerinin tek, basit komutlarla ayağa kaldırılmasını, yönetilmesini ve yapılandırılmasını sağlar.
 
 Bu repo, projenin **çalışan kalbidir**.
 
-## ✨ Felsefe: Basitlik, Esneklik ve Her Zaman Güncel
+## ✨ Felsefe: Basit Arayüz, Maksimum Esneklik
 
-Altyapımız üç temel ilke üzerine kurulmuştur:
-1.  **Basit Arayüz:** `Makefile` kullanarak, karmaşık `docker compose` komutlarını `make local-up` veya `make deploy` gibi basit, akılda kalıcı komutlara soyutluyoruz.
-2.  **Maksimum Esneklik:** Platform, **yerel geliştirme** (kaynak koddan inşa ederek) ve **dağıtım** (hazır imajları çekerek) modları arasında kolayca geçiş yapabilir. Bu, onu her türlü senaryoya (yerel makine, bulut sunucusu, hibrit ortamlar) uyumlu hale getirir.
-3.  **Her Zaman Güncel:** `deploy` modu, servisleri başlatmadan önce Docker imajlarının en güncel versiyonlarını otomatik olarak kontrol eder ve indirir (`pull`). Bu, manuel güncelleme ihtiyacını ortadan kaldırır ve sisteminizin her zaman en son, kararlı sürümle çalışmasını sağlar.
+Altyapımız, her türlü senaryoyu desteklemek üzere tasarlanmıştır:
+1.  **Basit Arayüz:** `Makefile` kullanarak, karmaşık `docker compose` komutlarını `make up`, `make deploy`, `make deploy-gateway` gibi basit, akılda kalıcı hedeflere soyutluyoruz.
+2.  **Maksimum Esneklik:** Platform, farklı modlarda çalışabilir:
+    *   **Yerel Geliştirme (`make up`):** Kaynak koddan inşa ederek en son değişikliklerle çalışmanızı sağlar.
+    *   **Dağıtım (`make deploy`):** `ghcr.io`'daki hazır, stabil Docker imajlarını kullanarak platformu kurar.
+3.  **Hibrit ve Dağıtık Kurulum:** `make deploy-gateway` ve `make deploy-core` gibi özel hedefler sayesinde, platformun parçalarını farklı sunuculara (örn: bir parça bulutta, bir parça yerelde) kolayca dağıtabilirsiniz.
 
 ---
 
@@ -23,24 +25,32 @@ Altyapımız üç temel ilke üzerine kurulmuştur:
 *   Git
 *   Docker ve Docker Compose
 *   `make` komut satırı aracı
-*   Tüm `sentiric-*` servis repolarının aynı ana dizin altında klonlanmış olması (sadece `local-up` modu için gereklidir).
+*   Tüm `sentiric-*` servis repolarının aynı ana dizin altında klonlanmış olması (`make up` modu için gereklidir).
+*   Private `sentiric-config` reposuna erişim için SSH anahtarınızın GitHub'a eklenmiş olması.
 
-### Adım 1: Yapılandırmayı Klonla
-Bu repo, özel ve hassas yapılandırmaları içeren `sentiric-config` reposuna bağımlıdır. `Makefile` bunu sizin için otomatik olarak yönetir. İlk çalıştırmada bu repo otomatik olarak klonlanacaktır.
+### Adım 1: Altyapı ve Yapılandırmayı Hazırla
+Bu komut, hem altyapı reposunu (`sentiric-infrastructure`) hem de özel yapılandırma reposunu (`sentiric-config`) klonlar.
+```bash
+git clone git@github.com:sentiric/sentiric-infrastructure.git
+cd sentiric-infrastructure
+# Makefile, config reposunu ilk çalıştırmada otomatik olarak klonlayacaktır.
+```
 
 ### Adım 2: Ortam Değişkenlerini Ayarla
 `.env.example` dosyasını kopyalayarak başlayın.
 ```bash
 cp .env.example .env
 ```
-Yerel geliştirme için genellikle bu dosyayı değiştirmenize gerek yoktur. `Makefile`, `PUBLIC_IP` gibi değişkenleri otomatik olarak algılayacaktır. Sadece harici servisler (Google, ElevenLabs vb.) için API anahtarlarınızı girmeniz yeterlidir.
+Yerel geliştirme için genellikle sadece harici servisler (Google, ElevenLabs vb.) için API anahtarlarınızı girmeniz yeterlidir.
 
 ### Adım 3: Platformu Başlat!
 
 **Seçenek A: Yerel Geliştirme İçin (Kaynak Koddan İnşa Et)**
 Eğer kodda değişiklik yapıyor ve en son halini test etmek istiyorsanız bu modu kullanın.
 ```bash
-make local-up
+make up
+# Veya sadece belirli servisleri başlatmak için:
+# make up agent-service postgres rabbitmq
 ```
 
 **Seçenek B: Dağıtım / Test İçin (Hazır İmajları Kullan)**
@@ -51,70 +61,35 @@ make deploy
 
 ---
 
-## 🛠️ Gelişmiş Kullanım ve Dağıtım Senaryoları
+## 🌐 Hibrit Dağıtım Senaryosu: GCP Gateway + WSL Çekirdek
 
-Bu altyapının asıl gücü, farklı dağıtım modlarını ve ortamlarını desteklemesidir.
+Bu senaryo, platformun `sip-gateway`'ini genel IP'ye sahip bir bulut sunucusunda (GCP), geri kalan tüm çekirdek servisleri ise yerel makinenizde (WSL) çalıştırmanıza olanak tanır. İki makine arasındaki iletişim **Tailscale** gibi bir özel ağ çözümü ile sağlanır.
 
-### Komut Yapısı
-Tüm `make` komutları şu yapıyı kullanır:
-`make [hedef] MODE=[mod] ENV=[ortam] [servis_adi...]`
+**Önkoşullar:**
+*   Hem GCP sunucusunda hem de WSL makinenizde Tailscale'in kurulu ve aynı ağa bağlı olması.
+*   `sentiric-config/environments/` altında `gcp_gateway_only.env` ve `wsl_core_services.env` dosyalarının doğru IP adresleriyle yapılandırılmış olması.
 
-*   **`[hedef]`**: `local-up`, `deploy`, `down`, `logs`, `ps`, `pull`.
-*   **`MODE`**:
-    *   `local` (varsayılan): Servisleri yerel diskteki kaynak koddan inşa eder (`build:`).
-    *   `deploy`: Servisleri `ghcr.io`'daki hazır Docker imajlarından çeker (`image:`).
-*   **`ENV`**: `sentiric-config/environments/` altındaki hangi `.env` dosyasının kullanılacağını belirtir (örn: `development`, `gcp_gateway_only`).
-*   **`[servis_adi...]`**: Sadece belirtilen servisleri başlatmak/durdurmak/izlemek için kullanılır.
-
-### Örnek Senaryolar
-
-#### 1. Yerel Geliştirme (Sadece belirli servisler)
+### Adım 1: GCP Sunucusunda Gateway'i Başlatın
 ```bash
-# Sadece agent-service ve bağımlılıklarını yerel koddan inşa et ve başlat
-make local-up agent-service
-
-# Sadece agent-service'in loglarını izle
-make logs agent-service
-
-# Tüm platformu durdur ve volümleri temizle
-make down
+# GCP sunucusunda, sentiric-infrastructure dizinindeyken:
+make deploy-gateway
 ```
+Bu komut, `gcp_gateway_only.env` yapılandırmasını kullanarak **sadece** `sip-gateway` servisini başlatır.
 
-#### 2. Uzak Sunucuya Dağıtım (Tüm Servisler)
-Bu senaryo, uzak bir sunucuda tüm platformu `ghcr.io`'dan en güncel hazır imajlarla kurar.
+### Adım 2: WSL Makinesinde Çekirdek Servisleri Başlatın
 ```bash
-# 1. Sunucuda bu repoyu ve sentiric-config'i klonlayın.
-# 2. .env dosyanızı oluşturup PUBLIC_IP'yi sunucunun IP'si ile değiştirin.
-# 3. Aşağıdaki komutu çalıştırın:
-
-make deploy ENV=development
+# WSL makinenizde, sentiric-infrastructure dizinindeyken:
+make deploy-core
 ```
+Bu komut, `wsl_core_services.env` yapılandırmasını kullanarak `sip-gateway` **hariç** diğer tüm temel servisleri başlatır.
 
-#### 3. Hibrit Dağıtım (GCP Gateway -> WSL Çekirdek)
-Bu senaryo, `sip-gateway`'i GCP'de, geri kalan servisleri ise WSL'de (Tailscale ile bağlı) çalıştırır.
-
-*   **GCP Sunucusunda:**
-    ```bash
-    # 'gcp_gateway_only.env' yapılandırmasıyla, SADECE sip-gateway servisini deploy et.
-    make deploy ENV=gcp_gateway_only sip-gateway
-    ```
-
-*   **WSL Makinesinde:**
-    ```bash
-    # 'wsl_core_services.env' yapılandırmasıyla, belirtilen çekirdek servisleri deploy et.
-    make deploy ENV=wsl_core_services postgres rabbitmq redis qdrant sip-signaling media-service
-    ```
-
-### 4. İmajları Manuel Olarak Güncelleme
-`deploy` komutu bunu otomatik yapsa da, isterseniz imajları sistemi başlatmadan önce manuel olarak güncelleyebilirsiniz:
-```bash
-# Belirli bir versiyonu çekmek için:
-make pull TAG=v1.2.0
-
-# Veya sadece belirli servislerin en son versiyonunu çekmek için:
-make pull agent-service tts-service
-```
+Artık sisteminiz hibrit modda çalışmaya hazırdır!
 
 ---
 
-Bu esnek yapı, Sentiric platformunu her türlü geliştirme ve dağıtım ihtiyacına uyacak şekilde yönetmenizi sağlar.
+## 🛠️ Diğer `make` Komutları
+
+*   **Sistemi Durdur:** `make down`
+*   **Logları İzle:** `make logs` veya `make logs agent-service sip-signaling`
+*   **Konteyner Durumunu Gör:** `make ps`
+*   **İmajları Manuel Güncelle:** `make pull` veya `make pull agent-service`
