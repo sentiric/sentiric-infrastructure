@@ -289,6 +289,38 @@ services:
       retries: 3
       start_period: 120s
 
+# --- YENİ SES ORKESTRASYON KATMANI ---
+  tts-gateway:
+    image: ghcr.io/sentiric/sentiric-tts-gateway-service:${TAG:-latest}
+    container_name: sentiric-tts-gateway-1
+    # DİKKAT: Henüz bir env dosyası yok, environment direkt olarak verilecek
+    environment:
+      - ENV=${ENV}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - RUST_LOG=${RUST_LOG}
+      - REDIS_URL=${REDIS_URL}
+      - EDGE_TTS_URL=http://edge-tts-service:5002
+      - COQUI_TTS_URL=http://coqui-tts-service:5002
+      - ELEVENLABS_TTS_URL=http://elevenlabs-tts-service:5002
+    ports: ["${TTS_GATEWAY_PORT:-50051}:50051"] # gRPC portu
+    networks: [sentiric-net]
+    restart: always
+    depends_on: { redis: { condition: service_healthy } }
+
+  edge-tts-service:
+    image: ghcr.io/sentiric/sentiric-edge-tts-service:${TAG:-latest}
+    container_name: sentiric-edge-tts-1
+    env_file: ../sentiric-config/environments/${ENV}.env
+    networks: [sentiric-net]
+    restart: always
+  
+  coqui-tts-service:
+    image: ghcr.io/sentiric/sentiric-coqui-tts-service:${TAG:-latest}
+    container_name: sentiric-coqui-tts-1
+    env_file: ../sentiric-config/environments/${ENV}.env
+    networks: [sentiric-net]
+    restart: always
+    
   tts-service:
     image: ghcr.io/sentiric/sentiric-tts-service:${TAG:-latest}
     container_name: sentiric-tts-service-1
