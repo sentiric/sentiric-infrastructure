@@ -1,8 +1,15 @@
-# Makefile - Sentiric Platform Orkestratörü v4.6 (En Basit ve Güvenilir)
+# Makefile - Sentiric Platform Orkestratörü v4.8 (Güvenilir Hibrit Dağıtım)
 
 # --- Yapılandırma ---
-MODE ?= local
+# Örn: make deploy ENV=gcp_gateway_only sip-gateway
+# Örn: make local-up agent-service
+# Örn: make logs sip-gateway sip-signaling
+#
+# MODE: 'local' (kaynak koddan inşa eder) veya 'deploy' (hazır imajları çeker)
+#       Bu değişken, hedefler tarafından otomatik olarak ayarlanır.
+# ENV: Hangi .env yapılandırmasının kullanılacağını belirtir (örn: development, gcp_gateway_only)
 ENV ?= development
+# TAG: 'deploy' modunda hangi imaj etiketinin kullanılacağını belirtir
 TAG ?= latest
 
 # --- Dosya Yolları ---
@@ -11,56 +18,59 @@ SOURCE_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
 TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
 
-# --- Dinamik Komut Seçimi ---
-ifeq ($(MODE), local)
-	COMPOSE_FILE := docker-compose.yml
-else
-	COMPOSE_FILE := docker-compose.prod.yml
-endif
-
-# --- Çekirdek Komut Bloğu ---
-# docker compose'a geçirilecek servis isimlerini alır.
+# --- Akıllı Servis Seçimi ---
+# make komutuna verilen hedef dışındaki tüm argümanları yakalar.
 # Örn: `make deploy sip-gateway` -> `SERVICES` = `sip-gateway`
-SERVICES := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-COMPOSE_CMD = CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE)
+SERVICES := $(filter-out $(firstword $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 # --- Kullanıcı Dostu Komutlar ---
 
-# Yerel geliştirme için
-# Kullanım: make local-up [servis1 servis2...]
-local-up: generate-env
-	@echo "▶️  Yerel geliştirme ortamı başlatılıyor: $(if $(SERVICES),$(SERVICES),all services)"
-	@$(COMPOSE_CMD) up -d --build --remove-orphans $(SERVICES)
+# Yerel geliştirme için (kaynak koddan inşa eder)
+# Kullanım: make local-up [servis1...]
+local-up:
+	@$(MAKE) --no-print-directory _run_compose MODE=local UP_ARGS="up -d --build --remove-orphans"
 
-# Dağıtım için
-# Kullanım: make deploy [servis1 servis2...]
-deploy: generate-env
+# Dağıtım için (hazır imajları çeker ve bağımlılıkları başlatmaz)
+# Kullanım: make deploy ENV=... [servis1...]
+deploy:
 	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile dağıtılıyor..."
 	@echo "--- Adım 1/2: İmajlar güncelleniyor: $(if $(SERVICES),$(SERVICES),all services)"
-	@$(COMPOSE_CMD) pull $(SERVICES)
+	@$(MAKE) --no-print-directory _run_compose MODE=deploy UP_ARGS="pull"
 	@echo "--- Adım 2/2: Konteynerler bağımlılıklar olmadan başlatılıyor..."
-	@$(COMPOSE_CMD) up -d --remove-orphans --no-deps $(SERVICES)
+	@$(MAKE) --no-print-directory _run_compose MODE=deploy UP_ARGS="up -d --remove-orphans --no-deps"
 
 # Diğer komutlar
-down: generate-env
+down:
 	@echo "🛑 Platform durduruluyor..."
-	@$(COMPOSE_CMD) down --volumes
+	@$(MAKE) --no-print-directory _run_compose MODE=local UP_ARGS="down --volumes"
 	@echo "🧹 Geçici yapılandırma dosyası ($(TARGET_ENV_FILE)) temizleniyor..."
 	@rm -f $(TARGET_ENV_FILE)
 
-logs: generate-env
+logs:
 	@echo "📜 Loglar izleniyor: $(if $(SERVICES),$(SERVICES),all services)... (Ctrl+C ile çık)"
-	@$(COMPOSE_CMD) logs -f $(SERVICES)
+	@$(MAKE) --no-print-directory _run_compose MODE=local UP_ARGS="logs -f"
 
-ps: generate-env
+ps:
 	@echo "📊 Konteyner durumu:"
-	@$(COMPOSE_CMD) ps $(SERVICES)
+	@$(MAKE) --no-print-directory _run_compose MODE=local UP_ARGS="ps"
 
-pull: generate-env
+pull:
 	@echo "🔄 İmajlar çekiliyor: $(if $(SERVICES),$(SERVICES),all services)"
-	@$(COMPOSE_CMD) pull $(SERVICES)
+	@$(MAKE) --no-print-directory _run_compose MODE=deploy UP_ARGS="pull"
 
-# --- Yardımcı Komutlar (DEĞİŞİKLİK YOK) ---
+# --- Çekirdek ve Yardımcı Komutlar (Bunları doğrudan çağırmayın) ---
+
+_run_compose: generate-env
+	@# Bu hedef, tüm docker compose komutlarını merkezileştirir.
+	@{ \
+		if [ "$(MODE)" = "local" ]; then \
+			COMPOSE_FILE="docker-compose.yml"; \
+		else \
+			COMPOSE_FILE="docker-compose.prod.yml"; \
+		fi; \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $$COMPOSE_FILE $(UP_ARGS) $(SERVICES); \
+	}
+
 generate-env: sync-config
 	@echo "🔧 Dinamik yapılandırma dosyası ($(TARGET_ENV_FILE)) oluşturuluyor..."
 	@if [ "$(ENV)" != "development" ]; then \
@@ -87,4 +97,4 @@ sync-config:
 		exit 1; \
 	fi
 
-.PHONY: local-up deploy down logs ps pull generate-env sync-config
+.PHONY: local-up deploy down logs ps pull generate-env sync-config _run_compose
