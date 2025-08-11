@@ -8,12 +8,12 @@ Bu depo, Sentiric "İletişim İşletim Sistemi" platformunun **merkezi orkestra
 
 Bu repo, projenin **çalışan kalbidir**.
 
-## ✨ Felsefe: Basitlik, Esneklik ve Tekrarlanabilirlik
+## ✨ Felsefe: Basitlik, Esneklik ve Her Zaman Güncel
 
 Altyapımız üç temel ilke üzerine kurulmuştur:
 1.  **Basit Arayüz:** `Makefile` kullanarak, karmaşık `docker compose` komutlarını `make local-up` veya `make deploy` gibi basit, akılda kalıcı komutlara soyutluyoruz.
 2.  **Maksimum Esneklik:** Platform, **yerel geliştirme** (kaynak koddan inşa ederek) ve **dağıtım** (hazır imajları çekerek) modları arasında kolayca geçiş yapabilir. Bu, onu her türlü senaryoya (yerel makine, bulut sunucusu, hibrit ortamlar) uyumlu hale getirir.
-3.  **Tekrarlanabilir Ortamlar:** `docker-compose` ve merkezi yapılandırma dosyaları sayesinde, her geliştiricinin ve her sunucunun birebir aynı ortamda çalışması garanti edilir, "benim makinemde çalışıyordu" sorunu ortadan kalkar.
+3.  **Her Zaman Güncel:** `deploy` modu, servisleri başlatmadan önce Docker imajlarının en güncel versiyonlarını otomatik olarak kontrol eder ve indirir (`pull`). Bu, manuel güncelleme ihtiyacını ortadan kaldırır ve sisteminizin her zaman en son, kararlı sürümle çalışmasını sağlar.
 
 ---
 
@@ -23,24 +23,31 @@ Altyapımız üç temel ilke üzerine kurulmuştur:
 *   Git
 *   Docker ve Docker Compose
 *   `make` komut satırı aracı
-*   Tüm `sentiric-*` servis repolarının aynı ana dizin altında klonlanmış olması (sadece yerel geliştirme için).
+*   Tüm `sentiric-*` servis repolarının aynı ana dizin altında klonlanmış olması (sadece `local-up` modu için gereklidir).
 
 ### Adım 1: Yapılandırmayı Klonla
-Bu repo, özel ve hassas yapılandırmaları içeren `sentiric-config` reposuna bağımlıdır. `Makefile` bunu sizin için otomatik olarak yönetir.
+Bu repo, özel ve hassas yapılandırmaları içeren `sentiric-config` reposuna bağımlıdır. `Makefile` bunu sizin için otomatik olarak yönetir. İlk çalıştırmada bu repo otomatik olarak klonlanacaktır.
 
 ### Adım 2: Ortam Değişkenlerini Ayarla
 `.env.example` dosyasını kopyalayarak başlayın.
 ```bash
 cp .env.example .env
 ```
-Yerel geliştirme için genellikle bu dosyayı değiştirmenize gerek yoktur. `Makefile`, `PUBLIC_IP` gibi değişkenleri otomatik olarak algılayacaktır.
+Yerel geliştirme için genellikle bu dosyayı değiştirmenize gerek yoktur. `Makefile`, `PUBLIC_IP` gibi değişkenleri otomatik olarak algılayacaktır. Sadece harici servisler (Google, ElevenLabs vb.) için API anahtarlarınızı girmeniz yeterlidir.
 
 ### Adım 3: Platformu Başlat!
-Tüm platformu yerel kaynak kodunuzdan **inşa ederek** başlatmak için:
+
+**Seçenek A: Yerel Geliştirme İçin (Kaynak Koddan İnşa Et)**
+Eğer kodda değişiklik yapıyor ve en son halini test etmek istiyorsanız bu modu kullanın.
 ```bash
 make local-up
 ```
-Bu komut, tüm servisleri arka planda başlatacaktır.
+
+**Seçenek B: Dağıtım / Test İçin (Hazır İmajları Kullan)**
+En kararlı, CI/CD tarafından oluşturulmuş versiyonları kullanarak tüm platformu ayağa kaldırmak için bu modu kullanın. Bu komut, önce imajları güncelleyecek, sonra sistemi başlatacaktır.
+```bash
+make deploy
+```
 
 ---
 
@@ -57,14 +64,14 @@ Tüm `make` komutları şu yapıyı kullanır:
     *   `local` (varsayılan): Servisleri yerel diskteki kaynak koddan inşa eder (`build:`).
     *   `deploy`: Servisleri `ghcr.io`'daki hazır Docker imajlarından çeker (`image:`).
 *   **`ENV`**: `sentiric-config/environments/` altındaki hangi `.env` dosyasının kullanılacağını belirtir (örn: `development`, `gcp_gateway_only`).
-*   **`[servis_adi...]`**: Sadece belirtilen servisleri başlatmak/durdurmak için kullanılır.
+*   **`[servis_adi...]`**: Sadece belirtilen servisleri başlatmak/durdurmak/izlemek için kullanılır.
 
 ### Örnek Senaryolar
 
-#### 1. Yerel Geliştirme (Tüm Servisler)
+#### 1. Yerel Geliştirme (Sadece belirli servisler)
 ```bash
-# Tüm servisleri yerel koddan inşa et ve başlat
-make local-up
+# Sadece agent-service ve bağımlılıklarını yerel koddan inşa et ve başlat
+make local-up agent-service
 
 # Sadece agent-service'in loglarını izle
 make logs agent-service
@@ -74,7 +81,7 @@ make down
 ```
 
 #### 2. Uzak Sunucuya Dağıtım (Tüm Servisler)
-Bu senaryo, uzak bir sunucuda tüm platformu `ghcr.io`'dan hazır imajlarla kurar.
+Bu senaryo, uzak bir sunucuda tüm platformu `ghcr.io`'dan en güncel hazır imajlarla kurar.
 ```bash
 # 1. Sunucuda bu repoyu ve sentiric-config'i klonlayın.
 # 2. .env dosyanızı oluşturup PUBLIC_IP'yi sunucunun IP'si ile değiştirin.
@@ -88,24 +95,24 @@ Bu senaryo, `sip-gateway`'i GCP'de, geri kalan servisleri ise WSL'de (Tailscale 
 
 *   **GCP Sunucusunda:**
     ```bash
-    # 'gcp_gateway_only.env' yapılandırmasıyla, SADECE sip-gateway'i deploy et.
+    # 'gcp_gateway_only.env' yapılandırmasıyla, SADECE sip-gateway servisini deploy et.
     make deploy ENV=gcp_gateway_only sip-gateway
     ```
 
 *   **WSL Makinesinde:**
     ```bash
     # 'wsl_core_services.env' yapılandırmasıyla, belirtilen çekirdek servisleri deploy et.
-    make deploy ENV=wsl_core_services postgres rabbitmq redis qdrant sip-signaling media-service ...
+    make deploy ENV=wsl_core_services postgres rabbitmq redis qdrant sip-signaling media-service
     ```
 
-### 4. İmajları Güncelleme
-Uzak bir sunucudaki imajları en son versiyonla (`:latest`) güncellemek için:
+### 4. İmajları Manuel Olarak Güncelleme
+`deploy` komutu bunu otomatik yapsa da, isterseniz imajları sistemi başlatmadan önce manuel olarak güncelleyebilirsiniz:
 ```bash
-# Önce en son imajları indir
-make pull
+# Belirli bir versiyonu çekmek için:
+make pull TAG=v1.2.0
 
-# Ardından platformu bu yeni imajlarla yeniden başlat
-make deploy ENV=...
+# Veya sadece belirli servislerin en son versiyonunu çekmek için:
+make pull agent-service tts-service
 ```
 
 ---
