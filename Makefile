@@ -1,4 +1,4 @@
-# Makefile - Sentiric Platform Orkestratörü v4.3 (Akıllı Servis Seçimi Destekli)
+# Makefile - Sentiric Platform Orkestratörü v4.4 (Güvenilir Servis Seçimi)
 
 # --- Yapılandırma ---
 MODE ?= local
@@ -11,10 +11,6 @@ SOURCE_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
 TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
 
-# --- Akıllı Servis Seçimi ---
-# Makefile'a verilen ekstra argümanları yakala (hedef komutlar hariç)
-ARGS := $(filter-out $@,$(MAKECMDGOALS))
-
 # --- Dinamik Komut Seçimi ---
 ifeq ($(MODE), local)
 	COMPOSE_FILE := docker-compose.yml
@@ -22,37 +18,53 @@ else
 	COMPOSE_FILE := docker-compose.prod.yml
 endif
 
+# --- Çekirdek Komut Bloğu ---
+# Bu blok, tüm docker compose komutlarını tek bir yerden yönetir.
+COMPOSE_CMD = CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE)
+
 # --- Kullanıcı Dostu Komutlar ---
-local-up:
-	@make up MODE=local ENV=development $(ARGS)
+# Bu özel hedef, make'e verilen diğer tüm argümanları yakalar.
+# Örn: `make local-up agent-service` -> `ARGS` = `agent-service`
+%:
+	@:
 
-deploy:
+# Yerel geliştirme için
+local-up: generate-env
+	@$(COMPOSE_CMD) up -d --build --remove-orphans $(filter-out $@,$(MAKECMDGOALS))
+
+# Dağıtım için (önce pull eder, sonra up yapar)
+deploy: generate-env
 	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile başlatılıyor..."
-	@echo "--- Adım 1/2: İmajlar güncelleniyor..."
-	@make pull MODE=deploy $(ARGS)
+	@echo "--- Adım 1/2: İmajlar güncelleniyor: $(if $(filter-out $@,$(MAKECMDGOALS)),$(filter-out $@,$(MAKECMDGOALS)),all services)"
+	@$(COMPOSE_CMD) pull $(filter-out $@,$(MAKECMDGOALS))
 	@echo "--- Adım 2/2: Konteynerler başlatılıyor..."
-	@make up MODE=deploy $(ARGS)
+	@$(COMPOSE_CMD) up -d --remove-orphans $(filter-out $@,$(MAKECMDGOALS))
 
-# --- Çekirdek Komutlar ---
-up: generate-env
-	@echo "▶️  Çalıştırılıyor: docker compose -f $(COMPOSE_FILE) up -d $(ARGS)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) up -d --remove-orphans $(ARGS)
+# Sadece imajları çekmek için
+pull: generate-env
+	@echo "🔄 İmajlar çekiliyor: $(if $(filter-out $@,$(MAKECMDGOALS)),$(filter-out $@,$(MAKECMDGOALS)),all services)"
+	@$(COMPOSE_CMD) pull $(filter-out $@,$(MAKECMDGOALS))
 
-down:
+# Sistemi durdurmak için
+down: generate-env
 	@echo "🛑 Platform durduruluyor..."
-	@make generate-env > /dev/null 2>&1 || true
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) down --volumes
+	@$(COMPOSE_CMD) down --volumes
 	@echo "🧹 Geçici yapılandırma dosyası ($(TARGET_ENV_FILE)) temizleniyor..."
 	@rm -f $(TARGET_ENV_FILE)
 
-pull:
-	@make generate-env > /dev/null 2>&1 || true
-	@echo "🔄 İmajlar çekiliyor: $(if $(ARGS),$(ARGS),all services)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) pull $(ARGS)
+# Logları izlemek için
+logs: generate-env
+	@echo "📜 Loglar izleniyor... (Ctrl+C ile çık)"
+	@$(COMPOSE_CMD) logs -f $(filter-out $@,$(MAKECMDGOALS))
+
+# Konteyner durumunu görmek için
+ps: generate-env
+	@echo "📊 Konteyner durumu:"
+	@$(COMPOSE_CMD) ps $(filter-out $@,$(MAKECMDGOALS))
 
 # --- Yardımcı Komutlar ---
-# ... (generate-env, sync-config, logs, ps hedefleri aynı kalabilir, aşağıya kopyalıyorum) ...
 generate-env: sync-config
+	@# ... (bu bölüm bir önceki versiyonla aynı, değiştirmiyoruz) ...
 	@echo "🔧 Dinamik yapılandırma dosyası ($(TARGET_ENV_FILE)) oluşturuluyor..."
 	@if [ "$(ENV)" != "development" ]; then \
 		cp "$(CONFIG_REPO_PATH)/environments/development.env" $(TARGET_ENV_FILE); \
@@ -66,6 +78,7 @@ generate-env: sync-config
 	@echo "TAG=$(TAG)" >> $(TARGET_ENV_FILE)
 
 sync-config:
+	@# ... (bu bölüm de aynı kalabilir) ...
 	@if [ ! -d "$(CONFIG_REPO_PATH)" ]; then \
 		echo "🛠️ Güvenli yapılandırma reposu klonlanıyor (SSH)..."; \
 		git clone git@github.com:sentiric/sentiric-config.git $(CONFIG_REPO_PATH); \
@@ -77,16 +90,5 @@ sync-config:
 		echo "❌ HATA: '$(ENV)' ortamı için yapılandırma dosyası bulunamadı: $(SOURCE_ENV_FILE)"; \
 		exit 1; \
 	fi
-
-logs:
-	@echo "📜 Loglar izleniyor... (Ctrl+C ile çık)"
-	@make generate-env > /dev/null 2>&1 || true
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) logs -f $(ARGS)
-
-ps:
-	@echo "📊 Konteyner durumu:"
-	@make generate-env > /dev/null 2>&1 || true
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(COMPOSE_FILE) ps $(ARGS)
-
 
 .PHONY: local-up deploy up down pull logs ps generate-env sync-config
