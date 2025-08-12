@@ -16,11 +16,9 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: sentiric-postgres-1
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports: ["5432:5432"]      
+    env_file:
+      - .env.generated
+    ports: ["5432:5432"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
@@ -35,9 +33,8 @@ services:
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
     container_name: sentiric-rabbitmq-1
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    env_file:
+      - .env.generated
     ports: ["15672:15672"]
     volumes: [rabbitmq_data:/var/lib/rabbitmq/]
     networks: [sentiric-net]
@@ -68,19 +65,14 @@ services:
     networks: [sentiric-net]
     restart: always
 
-  # --- GO & RUST SERVİSLERİ (ENVIRONMENT İLE) ---
+  # --- GO & RUST SERVİSLERİ ---
   user-service:
     build:
       context: ../sentiric-user-service
       args: { SERVICE_NAME: sentiric-user-service }
     container_name: sentiric-user-service-1
-    environment:
-      - POSTGRES_URL=${POSTGRES_URL}
-      - USER_SERVICE_GRPC_PORT=${USER_SERVICE_GRPC_PORT}
-      - USER_SERVICE_CERT_PATH=${USER_SERVICE_CERT_PATH}
-      - USER_SERVICE_KEY_PATH=${USER_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
@@ -91,13 +83,8 @@ services:
       context: ../sentiric-dialplan-service
       args: { SERVICE_NAME: sentiric-dialplan-service }
     container_name: sentiric-dialplan-service-1
-    environment:
-      - POSTGRES_URL=${POSTGRES_URL}
-      - DIALPLAN_SERVICE_GRPC_PORT=${DIALPLAN_SERVICE_GRPC_PORT}
-      - DIALPLAN_SERVICE_CERT_PATH=${DIALPLAN_SERVICE_CERT_PATH}
-      - DIALPLAN_SERVICE_KEY_PATH=${DIALPLAN_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
@@ -108,23 +95,8 @@ services:
       context: ../sentiric-agent-service
       args: { SERVICE_NAME: sentiric-agent-service }
     container_name: sentiric-agent-service-1
-    environment:
-      - ENV=${ENV}
-      - POSTGRES_URL=${POSTGRES_URL}
-      - RABBITMQ_URL=${RABBITMQ_URL}
-      - AGENT_QUEUE_NAME=call.events
-      - LLM_SERVICE_HOST=${LLM_SERVICE_HOST}
-      - LLM_SERVICE_PORT=${LLM_SERVICE_PORT}
-      - LLM_SERVICE_TLS_ENABLED=${LLM_SERVICE_TLS_ENABLED}
-      - TTS_SERVICE_HOST=${TTS_SERVICE_HOST}
-      - TTS_SERVICE_PORT=${TTS_SERVICE_PORT}
-      - TTS_SERVICE_TLS_ENABLED=${TTS_SERVICE_TLS_ENABLED}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - AGENT_SERVICE_CERT_PATH=${AGENT_SERVICE_CERT_PATH}
-      - AGENT_SERVICE_KEY_PATH=${AGENT_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - METRICS_PORT=${METRICS_PORT}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["9091:9091"]
     networks: [sentiric-net]
@@ -138,13 +110,8 @@ services:
       context: ../sentiric-api-gateway-service
       args: { SERVICE_NAME: sentiric-api-gateway-service }
     container_name: sentiric-api-gateway-1
-    environment:
-      - API_GATEWAY_SERVICE_PORT=${API_GATEWAY_SERVICE_PORT}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - API_GATEWAY_SERVICE_CERT_PATH=${API_GATEWAY_SERVICE_CERT_PATH}
-      - API_GATEWAY_SERVICE_KEY_PATH=${API_GATEWAY_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
     networks: [sentiric-net]
@@ -156,12 +123,8 @@ services:
       context: ../sentiric-cdr-service
       args: { SERVICE_NAME: sentiric-cdr-service }
     container_name: sentiric-cdr-service-1
-    environment:
-      - POSTGRES_URL=${POSTGRES_URL}
-      - RABBITMQ_URL=${RABBITMQ_URL}
-      - CDR_QUEUE_NAME=call.events
-      - METRICS_PORT=9092
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
     networks: [sentiric-net]
     restart: always
@@ -174,17 +137,8 @@ services:
       context: ../sentiric-media-service
       args: { SERVICE_NAME: sentiric-media-service }
     container_name: sentiric-media-service-1
-    environment:
-      - MEDIA_SERVICE_GRPC_PORT=${MEDIA_SERVICE_GRPC_PORT}
-      - RTP_SERVICE_LISTEN_ADDRESS=0.0.0.0
-      - RTP_SERVICE_PORT_MIN=${RTP_SERVICE_PORT_MIN}
-      - RTP_SERVICE_PORT_MAX=${RTP_SERVICE_PORT_MAX}
-      - RTP_SERVICE_PORT_QUARANTINE_SECONDS=${RTP_SERVICE_PORT_QUARANTINE_SECONDS}
-      - ASSETS_BASE_PATH=${ASSETS_BASE_PATH}
-      - MEDIA_SERVICE_CERT_PATH=${MEDIA_SERVICE_CERT_PATH}
-      - MEDIA_SERVICE_KEY_PATH=${MEDIA_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"]
     networks: [sentiric-net]
@@ -194,19 +148,10 @@ services:
   sip-signaling:
     build:
       context: ../sentiric-sip-signaling-service
-      args: { SERVICE_NAME: sentiric-sip-signaling-service }
+      args: { SERVICE_NAME: sentiric-sip-signaling-service } # Düzeltme: Servis adı doğru olmalı
     container_name: sentiric-sip-signaling-1
-    environment:
-      - SIP_SIGNALING_SERVICE_PORT=5060
-      - PUBLIC_IP=${PUBLIC_IP}
-      - DIALPLAN_SERVICE_GRPC_URL=${DIALPLAN_SERVICE_GRPC_URL}
-      - MEDIA_SERVICE_GRPC_URL=${MEDIA_SERVICE_GRPC_URL}
-      - USER_SERVICE_GRPC_URL=${USER_SERVICE_GRPC_URL}
-      - RABBITMQ_URL=${RABBITMQ_URL}
-      - SIP_SIGNALING_SERVICE_CERT_PATH=${SIP_SIGNALING_SERVICE_CERT_PATH}
-      - SIP_SIGNALING_SERVICE_KEY_PATH=${SIP_SIGNALING_SERVICE_KEY_PATH}
-      - GRPC_TLS_CA_PATH=${GRPC_TLS_CA_PATH}
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
@@ -217,23 +162,21 @@ services:
   sip-gateway:
     build:
       context: ../sentiric-sip-gateway-service
-      args: { SERVICE_NAME: sentiric-sip-gateway-service }
+      args: { SERVICE_NAME: sentiric-sip-gateway-service } # Düzeltme: Servis adı doğru olmalı
     container_name: sentiric-sip-gateway-1
-    environment:
-      - SIP_GATEWAY_SERVICE_PORT=${SIP_GATEWAY_SERVICE_PORT}
-      - SIP_SIGNALING_SERVICE_HOST=sip-signaling
-      - SIP_SIGNALING_SERVICE_PORT=5060
-      - ENV=${ENV}
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:5060/udp"]
     networks: [sentiric-net]
     restart: always
     depends_on: [sip-signaling]
 
-  # --- NODE.JS & PYTHON SERVİSLERİ (ENV_FILE İLE) ---
+  # --- NODE.JS & PYTHON SERVİSLERİ ---
   connectors-service:
     build: { context: ../sentiric-connectors-service }
     container_name: sentiric-connectors-service-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${CONNECTOR_SERVICE_PORT:-5005}:5005"]
     networks: [sentiric-net]
     restart: always
@@ -242,7 +185,8 @@ services:
   task-service:
     build: { context: ../sentiric-task-service }
     container_name: sentiric-task-service-api-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
     ports: ["${TASK_SERVICE_PORT:-5003}:5003"]
     networks: [sentiric-net]
@@ -252,7 +196,8 @@ services:
   task-service-worker:
     build: { context: ../sentiric-task-service }
     container_name: sentiric-task-service-worker-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
     networks: [sentiric-net]
@@ -262,7 +207,8 @@ services:
   flower:
     build: { context: ../sentiric-task-service }
     container_name: sentiric-flower-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     command: ["celery", "-A", "app.core.celery_app", "--broker=${RABBITMQ_URL}", "flower"]
     ports: ["${FLOWER_PORT:-5555}:5555"]
     networks: [sentiric-net]
@@ -274,7 +220,8 @@ services:
   llm-service:
     build: { context: ../sentiric-llm-service }
     container_name: sentiric-llm-service-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     networks: [sentiric-net]
     restart: always
     depends_on: [agent-service]
@@ -282,7 +229,8 @@ services:
   stt-service:
     build: { context: ../sentiric-stt-service }
     container_name: sentiric-stt-service-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: [stt-model-cache:/root/.cache]
     networks: [sentiric-net]
     restart: always
@@ -293,49 +241,11 @@ services:
       retries: 3
       start_period: 120s
 
-  # --- YENİ SES ORKESTRASYON KATMANI --- [ Dockerfile hazır değil ]
-  # tts-gateway:
-  #   build: { context: ../sentiric-tts-gateway-service }
-  #   container_name: sentiric-tts-gateway-1
-  #   environment:
-  #     - ENV=${ENV}
-  #     - LOG_LEVEL=${LOG_LEVEL}
-  #     - RUST_LOG=${RUST_LOG}
-  #     - REDIS_URL=${REDIS_URL}
-  #     - EDGE_TTS_URL=http://edge-tts-service:5002
-  #     - COQUI_TTS_URL=http://coqui-tts-service:5002
-  #     - ELEVENLABS_TTS_URL=http://elevenlabs-tts-service:5002
-  #   ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   depends_on: { redis: { condition: service_healthy } }
-
-  # edge-tts-service:
-  #   build: { context: ../sentiric-edge-tts-service }
-  #   container_name: sentiric-edge-tts-1
-  #   env_file: ../sentiric-config/environments/${ENV}.env
-  #   networks: [sentiric-net]
-  #   restart: always
-  
-  # coqui-tts-service:
-  #   build: { context: ../sentiric-coqui-tts-service }
-  #   container_name: sentiric-coqui-tts-1
-  #   env_file: ../sentiric-config/environments/${ENV}.env
-  #   networks: [sentiric-net]
-  #   restart: always
-
-  # --- DEĞİŞİKLİK BURADA: tts-service'i yorum satırı yapıyoruz ---
-  # tts-service:
-  #   build: { context: ../sentiric-tts-service }
-  #   container_name: sentiric-tts-service-1
-  #   env_file: ../sentiric-config/environments/${ENV}.env
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   depends_on: [agent-service]
   knowledge-service:
     build: { context: ../sentiric-knowledge-service }
     container_name: sentiric-knowledge-service-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${KNOWLEDGE_SERVICE_PORT:-50055}:50055"]
     volumes: ["./data:/app/data"]
     networks: [sentiric-net]
@@ -347,7 +257,8 @@ services:
   messaging-gateway:
     build: { context: ../sentiric-messaging-gateway-service }
     container_name: sentiric-messaging-gateway-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]
     restart: always
@@ -357,7 +268,8 @@ services:
   dashboard-ui:
     build: { context: ../sentiric-dashboard-ui }
     container_name: sentiric-dashboard-ui-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
     networks: [sentiric-net]
     restart: always
@@ -366,7 +278,8 @@ services:
   web-agent-ui:
     build: { context: ../sentiric-web-agent-ui }
     container_name: sentiric-web-agent-ui-1
-    env_file: ../sentiric-config/environments/${ENV}.env
+    env_file:
+      - .env.generated # <-- DEĞİŞİKLİK
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
     networks: [sentiric-net]
     restart: always
