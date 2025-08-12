@@ -1,4 +1,4 @@
-# Makefile - Sentiric Platform Orkestratörü v5.4 (Hibrit Dağıtım Odaklı)
+# Makefile - Sentiric Platform Orkestratörü v5.5 (Hibrit Ortam Uyumlu)
 
 # --- Değişkenler ---
 ENV ?= development
@@ -12,47 +12,52 @@ SPECIFIC_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
 TARGET_ENV_FILE := .env.generated
 DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
 
-# --- Kompozisyon Dosyaları ---
-COMPOSE_FILES := -f docker-compose.yml
-PROD_COMPOSE_FILES := -f docker-compose.core.yml -f docker-compose.gateway.yml
+# --- HİBRİT ORTAM İÇİN AKILLI COMPOSE DOSYASI SEÇİMİ ---
+# Hangi ortamda hangi compose dosyasının kullanılacağını tanımlıyoruz.
+ifeq ($(ENV),gcp_gateway_only)
+    PROD_COMPOSE_FILE := -f docker-compose.gateway.yml
+else ifeq ($(ENV),wsl_core_services)
+    PROD_COMPOSE_FILE := -f docker-compose.core.yml
+else
+    # Varsayılan "development" veya tam "production" ortamı için tüm dosyaları kullan
+    PROD_COMPOSE_FILE := -f docker-compose.core.yml -f docker-compose.gateway.yml
+endif
+
+# Yerel geliştirme için her zaman ana yml dosyası kullanılır
+DEV_COMPOSE_FILE := -f docker-compose.yml
 
 # --- Ana Komutlar ---
 up: generate-env
 	@echo "▶️  Yerel geliştirme ortamı ($(ENV)) başlatılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICES)
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(DEV_COMPOSE_FILE) up -d --build --remove-orphans $(SERVICES)
 
 deploy: generate-env
 	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile dağıtılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILES) pull $(SERVICES)
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICES)
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) pull $(SERVICES)
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) up -d --remove-orphans --no-deps $(SERVICES)
 
 down:
 	@echo "🛑 Platform durduruluyor ve tüm veriler (volume'ler) siliniyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(COMPOSE_FILES) $(PROD_COMPOSE_FILES) down --volumes
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(DEV_COMPOSE_FILE) $(PROD_COMPOSE_FILE) down --volumes
 	@echo "🧹 Geçici yapılandırma dosyası ($(TARGET_ENV_FILE)) temizleniyor..."
 	@rm -f $(TARGET_ENV_FILE)
 
-# --- Yönetim Komutları ---
-logs:
+# --- Yönetim Komutları (Artık Ortama Duyarlı) ---
+logs: generate-env
 	@echo "📜 Loglar izleniyor: $(if $(SERVICES),$(SERVICES),tüm servisler)... (Ctrl+C ile çık)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(COMPOSE_FILES) $(PROD_COMPOSE_FILES) logs -f $(SERVICES)
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) logs -f $(SERVICES)
 
-ps:
+ps: generate-env
 	@echo "📊 Konteyner durumu:"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(COMPOSE_FILES) $(PROD_COMPOSE_FILES) ps $(SERVICES)
+	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) ps $(SERVICES)
 
 # --- Hibrit Dağıtım Kısayolları ---
+# Artık doğrudan 'deploy' hedefini doğru ENV ile çağırabiliriz
 deploy-gateway:
-	@$(MAKE) ENV=gcp_gateway_only deploy_single_file FILE=docker-compose.gateway.yml
+	@$(MAKE) ENV=gcp_gateway_only deploy
 
 deploy-core:
-	@$(MAKE) ENV=wsl_core_services deploy_single_file FILE=docker-compose.core.yml
-
-# --- YENİ YARDIMCI HEDEF ---
-deploy_single_file: generate-env
-	@echo "🚀 Tek dosya ile dağıtım yapılıyor: $(FILE) (ENV: $(ENV), TAG: $(TAG))"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(FILE) pull
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) -f $(FILE) up -d --remove-orphans
+	@$(MAKE) ENV=wsl_core_services deploy
 
 # --- Yardımcı Komutlar (DEĞİŞİKLİK YOK) ---
 generate-env: sync-config
@@ -77,4 +82,4 @@ sync-config:
 		exit 1; \
 	fi
 
-.PHONY: up deploy down logs ps deploy-gateway deploy-core deploy_single_file generate-env sync-config
+.PHONY: up deploy down logs ps deploy-gateway deploy-core generate-env sync-config
