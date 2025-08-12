@@ -138,7 +138,10 @@ services:
     container_name: sentiric-sip-signaling-1
     env_file:
       - .env.generated
-    ports: ["${SIP_SIGNALING_SERVICE_PORT:-5060}:5060/udp"]
+    # Bu port kullanım durumuna göre açılıp kapanabilir yada alternatif bir yaklaşım.
+    # Yad dahili ağda güvenli iletişim portuna geçebilir. VPC Kullanım senaryoları için açmayı planlamıştır.
+    # Vpc de api-gateway i çalıştırıyoruz yerel de yine api-gateway i tekrar çalıştırıyoruz. gateway to gateway
+    # ports: ["${SIP_SIGNALING_SERVICE_PORT:-5060}:${SIP_SIGNALING_SERVICE_PORT:-5060}/udp"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
@@ -232,31 +235,31 @@ services:
   # ... Diğer Python/Node servisleri de aynı şekilde güncellenmeli ...
   # Şimdilik tts-gateway ve diğerlerini de env_file'a çevirelim
   
-  tts-gateway:
-    image: ghcr.io/sentiric/sentiric-tts-gateway-service:${TAG:-latest}
-    container_name: sentiric-tts-gateway-1
-    env_file:
-      - .env.generated
-    ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
-    networks: [sentiric-net]
-    restart: always
-    depends_on: { redis: { condition: service_healthy } }
+  # tts-gateway:
+  #   image: ghcr.io/sentiric/sentiric-tts-gateway-service:${TAG:-latest}
+  #   container_name: sentiric-tts-gateway-1
+  #   env_file:
+  #     - .env.generated
+  #   ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   depends_on: { redis: { condition: service_healthy } }
 
-  edge-tts-service:
-    image: ghcr.io/sentiric/sentiric-edge-tts-service:${TAG:-latest}
-    container_name: sentiric-edge-tts-1
-    env_file:
-      - .env.generated
-    networks: [sentiric-net]
-    restart: always
+  # edge-tts-service:
+  #   image: ghcr.io/sentiric/sentiric-edge-tts-service:${TAG:-latest}
+  #   container_name: sentiric-edge-tts-1
+  #   env_file:
+  #     - .env.generated
+  #   networks: [sentiric-net]
+  #   restart: always
   
-  coqui-tts-service:
-    image: ghcr.io/sentiric/sentiric-coqui-tts-service:${TAG:-latest}
-    container_name: sentiric-coqui-tts-1
-    env_file:
-      - .env.generated
-    networks: [sentiric-net]
-    restart: always
+  # coqui-tts-service:
+  #   image: ghcr.io/sentiric/sentiric-coqui-tts-service:${TAG:-latest}
+  #   container_name: sentiric-coqui-tts-1
+  #   env_file:
+  #     - .env.generated
+  #   networks: [sentiric-net]
+  #   restart: always
     
   knowledge-service:
     image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest}
