@@ -18,6 +18,8 @@ services:
     container_name: sentiric-postgres-1
     env_file:
       - .env.generated
+    # prod ortamı yerel sunucumuzda olduğu için açılabilir diye düşünüyorum.
+    ports: ["5432:5432"]      
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
