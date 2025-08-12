@@ -125,6 +125,7 @@ services:
     container_name: sentiric-cdr-service-1
     env_file:
       - .env.generated # <-- DEĞİŞİKLİK
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]     
     ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
     networks: [sentiric-net]
     restart: always
