@@ -162,14 +162,17 @@ services:
   sip-gateway:
     build:
       context: ../sentiric-sip-gateway-service
-      args: { SERVICE_NAME: sentiric-sip-gateway-service } # Düzeltme: Servis adı doğru olmalı
+      args: { SERVICE_NAME: sentiric-sip-gateway-service }
     container_name: sentiric-sip-gateway-1
     env_file:
-      - .env.generated # <-- DEĞİŞİKLİK
+      - .env.generated
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:5060/udp"]
     networks: [sentiric-net]
     restart: always
-    depends_on: [sip-signaling]
+    depends_on:
+      # DÜZELTME: Sadece başlatılmasını değil, çalışır durumda olmasını bekle
+      sip-signaling:
+        condition: service_started
 
   # --- NODE.JS & PYTHON SERVİSLERİ ---
   connectors-service:

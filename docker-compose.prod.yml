@@ -153,7 +153,10 @@ services:
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:5060/udp"]
     networks: [sentiric-net]
     restart: always
-    depends_on: [sip-signaling]
+    depends_on:
+      # DÜZELTME: Sadece başlatılmasını değil, çalışır durumda olmasını bekle
+      sip-signaling:
+        condition: service_started
 
   # --- NODE.JS & PYTHON SERVİSLERİ ---
   connectors-service:
