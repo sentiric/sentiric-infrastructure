@@ -1,6 +1,4 @@
 # docker-compose.core.yml
-version: '3.8'
-
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
@@ -18,7 +16,7 @@ services:
   # --- VERİ KATMANI ---
   postgres:
     image: postgres:16-alpine
-    container_name: sentiric-postgres-1
+    container_name: sentiric-core-postgres-1
     env_file: [".env.generated"]
     ports: ["5432:5432"]
     volumes:
@@ -34,7 +32,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric-rabbitmq-1
+    container_name: sentiric-core-rabbitmq-1
     env_file: [".env.generated"]
     ports: ["15672:15672"]
     volumes: [rabbitmq_data:/var/lib/rabbitmq/]
@@ -48,7 +46,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: sentiric-redis-1
+    container_name: sentiric-core-redis-1
     volumes: [redis_data:/data]
     networks: [sentiric-net]
     restart: always
@@ -60,7 +58,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: sentiric-qdrant-1
+    container_name: sentiric-core-qdrant-1
     ports: ["${VECTOR_DB_PORT:-6333}:6333"]
     volumes: [qdrant_data:/qdrant/storage]
     networks: [sentiric-net]
@@ -68,7 +66,7 @@ services:
 
   flower:
     image: mher/flower
-    container_name: sentiric-flower-1
+    container_name: sentiric-core-flower-1
     env_file: [".env.generated"]
     command: ["celery", "-A", "app.core.celery_app", "--broker=${RABBITMQ_URL}", "flower"]
     ports: ["${FLOWER_PORT:-5555}:5555"]
@@ -79,7 +77,7 @@ services:
   # --- UYGULAMA SERVİSLERİ (İMAJDAN) ---
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
-    container_name: sentiric-user-service-1
+    container_name: sentiric-core-user-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -88,7 +86,7 @@ services:
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
-    container_name: sentiric-dialplan-service-1
+    container_name: sentiric-core-dialplan-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -97,7 +95,7 @@ services:
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    container_name: sentiric-agent-service-1
+    container_name: sentiric-core-agent-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["9091:9091"]
@@ -107,7 +105,7 @@ services:
     
   cdr-service:
     image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest}
-    container_name: sentiric-cdr-service-1
+    container_name: sentiric-core-cdr-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
@@ -117,7 +115,7 @@ services:
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
-    container_name: sentiric-media-service-1
+    container_name: sentiric-core-media-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"]
@@ -127,7 +125,7 @@ services:
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
-    container_name: sentiric-sip-signaling-1
+    container_name: sentiric-core-sip-signaling-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -136,7 +134,7 @@ services:
 
   connectors-service:
     image: ghcr.io/sentiric/sentiric-connectors-service:${TAG:-latest}
-    container_name: sentiric-connectors-service-1
+    container_name: sentiric-core-connectors-service-1
     env_file: [".env.generated"]
     ports: ["${CONNECTOR_SERVICE_PORT:-5005}:5005"]
     networks: [sentiric-net]
@@ -145,7 +143,7 @@ services:
 
   task-service:
     image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
-    container_name: sentiric-task-service-api-1
+    container_name: sentiric-core-task-service-api-1
     env_file: [".env.generated"]
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
     ports: ["${TASK_SERVICE_PORT:-5003}:5003"]
@@ -155,7 +153,7 @@ services:
 
   task-service-worker:
     image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
-    container_name: sentiric-task-service-worker-1
+    container_name: sentiric-core-task-service-worker-1
     env_file: [".env.generated"]
     user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
@@ -165,7 +163,7 @@ services:
 
   llm-service:
     image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
-    container_name: sentiric-llm-service-1
+    container_name: sentiric-core-llm-service-1
     env_file: [".env.generated"]
     networks: [sentiric-net]
     restart: always
@@ -173,7 +171,7 @@ services:
 
   stt-service:
     image: ghcr.io/sentiric/sentiric-stt-service:${TAG:-latest}
-    container_name: sentiric-stt-service-1
+    container_name: sentiric-core-stt-service-1
     env_file: [".env.generated"]
     volumes: [stt-model-cache:/root/.cache]
     networks: [sentiric-net]
@@ -182,7 +180,7 @@ services:
 
   knowledge-service:
     image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest}
-    container_name: sentiric-knowledge-service-1
+    container_name: sentiric-core-knowledge-service-1
     env_file: [".env.generated"]
     ports: ["${KNOWLEDGE_SERVICE_PORT:-50055}:50055"]
     volumes: ["./data:/app/data"]
@@ -192,7 +190,7 @@ services:
 
   messaging-gateway:
     image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
-    container_name: sentiric-messaging-gateway-1
+    container_name: sentiric-core-messaging-gateway-1
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]
@@ -201,7 +199,7 @@ services:
 
   dashboard-ui:
     image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
-    container_name: sentiric-dashboard-ui-1
+    container_name: sentiric-core-dashboard-ui-1
     env_file: [".env.generated"]
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
     networks: [sentiric-net]
@@ -210,7 +208,7 @@ services:
 
   web-agent-ui:
     image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
-    container_name: sentiric-web-agent-ui-1
+    container_name: sentiric-core-web-agent-ui-1
     env_file: [".env.generated"]
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
     networks: [sentiric-net]

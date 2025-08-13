@@ -1,6 +1,4 @@
 # docker-compose.gateway.yml
-version: '3.8'
-
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
@@ -9,7 +7,7 @@ networks:
 services:
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    container_name: sentiric-sip-gateway-1
+    container_name: sentiric-gateway-sip-gateway-1
     env_file: [".env.generated"]
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:${SIP_GATEWAY_LISTEN_PORT:-5060}/udp"]
     networks: [sentiric-net]
@@ -17,7 +15,7 @@ services:
 
   api-gateway:
     image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest}
-    container_name: sentiric-api-gateway-1
+    container_name: sentiric-gateway-api-gateway-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
