@@ -4,3 +4,4 @@
 !.env.example
 sentiric-config/
 .profile.state
+.env.generated

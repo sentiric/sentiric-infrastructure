@@ -1,18 +1,19 @@
-# Sentiric Orchestrator v10.0 "Rock Solid"
+# Sentiric Orchestrator v10.1 "Rock Solid - Final Fix"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # --- Otomatik Konfigürasyon ---
+# Kullanıcı profil belirtmezse, state dosyasından oku, o da yoksa 'dev' kullan.
 PROFILE ?= $(shell cat .profile.state 2>/dev/null || echo dev)
-ENV_FILE := .env.$(PROFILE)
+# Her zaman '.env.generated' dosyasını hedefle. Hangi profilden oluşacağı generate adımında belirlenir.
+ENV_FILE := .env.generated
 CONFIG_REPO_PATH := ../sentiric-config
-ENV_CONFIG_PROFILE := $(PROFILE)
 
 # Profile göre kullanılacak dosyayı belirle
 ifeq ($(PROFILE),core)
-    COMPOSE_FILE := -f docker-compose.core.yml
+    COMPOSE_FILES := -f docker-compose.core.yml
 else ifeq ($(PROFILE),gateway)
     COMPOSE_FILES := -f docker-compose.gateway.yml
 else # Varsayılan dev
@@ -20,8 +21,6 @@ else # Varsayılan dev
 endif
 
 # --- Sezgisel Komutlar ---
-# NOT: Artık tüm komutlar CONFIG_REPO_PATH değişkenini doğrudan Docker Compose'a iletiyor.
-# Bu, WSL'deki uyarıları ortadan kaldıracak.
 
 start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
 	@echo "🎻 Orkestra hazırlanıyor... Profil: $(PROFILE)"
@@ -39,28 +38,40 @@ start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
 
 stop: ## ⏹️ Platformu durdurur (Mevcut Profil)
 	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v; \
+	else \
+		echo "Uyarı: Durdurulacak aktif bir profil bulunamadı."; \
+	fi
 
+# ... (restart, status, logs, clean, help komutları önceki v10.0'daki gibi kalabilir, onlarda sorun yok)
 restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
 	@$(MAKE) stop
 	@$(MAKE) start
 
 status: ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
 	@echo "📊 Platform durumu... Profil: $(PROFILE)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE)
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE); \
+	else \
+		echo "Uyarı: Durumu gösterilecek aktif bir profil bulunamadı."; \
+	fi
 
 logs: ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
 	@echo "📜 Loglar izleniyor... Profil: $(PROFILE) $(if $(SERVICE),Servis: $(SERVICE),)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE)
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
+	else \
+		echo "Uyarı: Logları izlenecek aktif bir profil bulunamadı."; \
+	fi
 
-# ... (clean ve help komutları aynı kalabilir) ...
 clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar (tüm profiller, imajlar, veriler)
 	@read -p "DİKKAT: TÜM Docker verileri silinecek. Onaylıyor musunuz? (y/N) " choice; \
 	if [[ "$$choice" == "y" || "$$choice" == "Y" ]]; then \
 		echo "🧹 Platform temizleniyor..."; \
-		docker compose -p sentiric-dev down -v --remove-orphans 2>/dev/null || true; \
-		docker compose -p sentiric-core down -v --remove-orphans 2>/dev/null || true; \
-		docker compose -p sentiric-gateway down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -p sentiric-dev -f docker-compose.dev.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -p sentiric-core -f docker-compose.core.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -p sentiric-gateway -f docker-compose.gateway.yml down -v --remove-orphans 2>/dev/null || true; \
 		docker rm -f $$(docker ps -aq) 2>/dev/null || true; \
 		docker rmi -f $$(docker images -q) 2>/dev/null || true; \
 		docker volume prune -f 2>/dev/null || true; \
@@ -74,7 +85,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar (tüm profiller, imajlar, ve
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v10.0 \"Rock Solid\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v10.1 \"Rock Solid\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
@@ -90,7 +101,7 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
-	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
+	@bash scripts/generate-env.sh $(PROFILE)
 
 _sync_config:
 	@if [ ! -d "../sentiric-config" ]; then \
