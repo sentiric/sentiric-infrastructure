@@ -1,4 +1,5 @@
 # docker-compose.gateway.yml
+
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
@@ -17,6 +18,7 @@ services:
     image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest}
     container_name: sentiric-gateway-api-gateway-1
     env_file: [".env.generated"]
+    # EKSİK OLAN SATIR BURASIYDI:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
     networks: [sentiric-net]

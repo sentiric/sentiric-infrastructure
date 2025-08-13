@@ -3,36 +3,19 @@ set -e
 
 PROFILE=${1:-dev}
 CONFIG_DIR="../sentiric-config/environments"
-OUTPUT_FILE=".env.generated" # <<<--- DEĞİŞİKLİK BURADA
+OUTPUT_FILE=".env.generated"
 SECRETS_FILE="${CONFIG_DIR}/common/secrets.env"
+PROFILE_FILE="${CONFIG_DIR}/profiles/${PROFILE}.env"
 
 echo "# Auto-generated for profile: ${PROFILE}" > "$OUTPUT_FILE"
-# ... (script'in geri kalanı aynı kalabilir, bir önceki yanıttaki gibi) ...
-# Profil dosyasındaki 'include' direktiflerini oku ve işle
-while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ "$line" == include* ]]; then
-        path_to_include=$(echo "$line" | cut -d' ' -f2)
-        # Wildcard (*) desteği
-        for file in $(find "${CONFIG_DIR}" -path "${CONFIG_DIR}/${path_to_include}"); do
-            if [ -f "$file" ]; then
-                echo "" >> "$OUTPUT_FILE"
-                echo "# Included from: $(basename "$file")" >> "$OUTPUT_FILE"
-                cat "$file" >> "$OUTPUT_FILE"
-            fi
-        done
-    else
-        echo "$line" >> "$OUTPUT_FILE"
-    fi
-done < "${CONFIG_DIR}/profiles/${PROFILE}.env"
+cat "$PROFILE_FILE" >> "$OUTPUT_FILE"
 
-# Sırları (secrets) ekle
 if [ -f "$SECRETS_FILE" ]; then
     echo "" >> "$OUTPUT_FILE"
     echo "# Included from: secrets.env" >> "$OUTPUT_FILE"
     cat "$SECRETS_FILE" >> "$OUTPUT_FILE"
 fi
 
-# Dinamik değişkenleri ekle
 echo "" >> "$OUTPUT_FILE"
 echo "# Dynamically added by Orchestrator" >> "$OUTPUT_FILE"
 DETECTED_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' || hostname -I | awk '{print $1}')
