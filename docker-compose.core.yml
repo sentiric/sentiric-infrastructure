@@ -129,6 +129,8 @@ services:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
     container_name: sentiric-core-sip-signaling-1
     env_file: [".env.generated"]
+    ports:
+      - "${SIP_SIGNALING_SERVICE_PORT:-5060}:${SIP_SIGNALING_SERVICE_PORT:-5060}/udp"    
     volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
