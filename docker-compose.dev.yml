@@ -215,6 +215,7 @@ services:
   messaging-gateway:
     container_name: sentiric-dev-messaging-gateway-1
     build: { context: ../sentiric-messaging-gateway-service }
+    command: sh -c "rm -f /app/wweb_auth/SingletonLock && node dist/index.js"
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]

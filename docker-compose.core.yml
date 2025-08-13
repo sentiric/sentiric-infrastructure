@@ -195,13 +195,15 @@ services:
     depends_on: { postgres: { condition: service_healthy }, qdrant: { condition: service_started } }
 
   messaging-gateway:
-    image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
-    container_name: sentiric-core-messaging-gateway-1
-    env_file: [".env.generated"]
-    volumes: [whatsapp_session:/app/wweb_auth]
-    networks: [sentiric-net]
-    restart: always
-    depends_on: { rabbitmq: { condition: service_healthy } }
+      image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
+      container_name: sentiric-core-messaging-gateway-1
+      # YENİ SATIR:
+      command: sh -c "rm -f /app/wweb_auth/SingletonLock && node dist/index.js"
+      env_file: [".env.generated"]
+      volumes: [whatsapp_session:/app/wweb_auth]
+      networks: [sentiric-net]
+      restart: always
+      depends_on: { rabbitmq: { condition: service_healthy } }
 
   dashboard-ui:
     image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
