@@ -1,35 +1,29 @@
-# Sentiric Orchestrator v8.1 "Symphony"
-# Usage: make <command> [PROFILE=dev|prod|core|gateway] [SERVICE=...]
+# Sentiric Orchestrator v9.0 "Conductor"
+# Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # --- Otomatik Konfigürasyon ---
+# Kullanıcı profil belirtmezse, state dosyasından oku, o da yoksa 'dev' kullan.
 PROFILE ?= $(shell cat .profile.state 2>/dev/null || echo dev)
 ENV_FILE := .env.$(PROFILE)
 CONFIG_REPO_PATH := ../sentiric-config
 
-# Profile göre kullanılacak dosyaları ve servis listesini belirle
+# Profile göre kullanılacak dosyayı ve env profilini belirle
 ifeq ($(PROFILE),dev)
-    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.dev.yml
+    COMPOSE_FILE := -f docker-compose.dev.yml
     ENV_CONFIG_PROFILE := dev
-    SERVICE_LIST :=
 else ifeq ($(PROFILE),gateway)
-    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
-    SERVICE_LIST := sip-gateway api-gateway
+    COMPOSE_FILES := -f docker-compose.gateway.yml
     ENV_CONFIG_PROFILE := gateway
 else ifeq ($(PROFILE),core)
-    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
-    SERVICE_LIST := $(shell docker compose -f docker-compose.base.yml config --services | grep -v 'gateway')
+    COMPOSE_FILES := -f docker-compose.core.yml
     ENV_CONFIG_PROFILE := core
-else # Tam üretim (prod)
-    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
-    ENV_CONFIG_PROFILE := prod
-    SERVICE_LIST :=
+else
+    # Bilinmeyen profil için hata ver
+    $(error "Bilinmeyen Profil: $(PROFILE). Sadece 'dev', 'core', 'gateway' kullanılabilir.")
 endif
-
-# Eğer kullanıcı SERVICE değişkeni belirtirse, onu kullan. Yoksa profilden geleni kullan.
-FINAL_SERVICES = $(if $(SERVICE),$(SERVICE),$(SERVICE_LIST))
 
 # --- Sezgisel Komutlar ---
 
@@ -40,16 +34,20 @@ start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
 	@$(MAKE) _generate_env
 	@if [ "$(PROFILE)" = "dev" ]; then \
 		echo "🚀 Kaynak koddan inşa edilerek geliştirme ortamı başlatılıyor..."; \
-		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans; \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
 	else \
 		echo "🚀 Hazır imajlarla '$(PROFILE)' profili dağıtılıyor..."; \
-		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) pull $(FINAL_SERVICES); \
-		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(FINAL_SERVICES); \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) pull $(SERVICE); \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICE); \
 	fi
 
 stop: ## ⏹️ Platformu durdurur (Mevcut Profil)
 	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) down $(FINAL_SERVICES)
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v; \
+	else \
+		echo "Uyarı: Durdurulacak aktif bir profil bulunamadı."; \
+	fi
 
 restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
 	@$(MAKE) stop
@@ -57,18 +55,29 @@ restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
 
 status: ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
 	@echo "📊 Platform durumu... Profil: $(PROFILE)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(FINAL_SERVICES)
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE); \
+	else \
+		echo "Uyarı: Durumu gösterilecek aktif bir profil bulunamadı."; \
+	fi
 
 logs: ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
 	@echo "📜 Loglar izleniyor... Profil: $(PROFILE) $(if $(SERVICE),Servis: $(SERVICE),)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(FINAL_SERVICES)
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
+	else \
+		echo "Uyarı: Logları izlenecek aktif bir profil bulunamadı."; \
+	fi
 
 clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar (tüm profiller, imajlar, veriler)
-	@read -p "DİKKAT: TÜM Docker verileri (imajlar, volumelar dahil) silinecek. Onaylıyor musunuz? (y/N) " choice; \
+	@read -p "DİKKAT: TÜM Docker verileri silinecek. Onaylıyor musunuz? (y/N) " choice; \
 	if [[ "$$choice" == "y" || "$$choice" == "Y" ]]; then \
 		echo "🧹 Platform temizleniyor..."; \
-		docker compose -f docker-compose.base.yml -f docker-compose.dev.yml -f docker-compose.prod.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -f docker-compose.dev.yml -f docker-compose.core.yml -f docker-compose.gateway.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker rm -f $$(docker ps -aq) 2>/dev/null || true; \
 		docker rmi -f $$(docker images -q) 2>/dev/null || true; \
+		docker volume prune -f 2>/dev/null || true; \
+		docker network prune -f 2>/dev/null || true; \
 		docker builder prune -af --force 2>/dev/null || true; \
 		rm -f .env.* .profile.state; \
 		echo "Temizlik tamamlandı."; \
@@ -78,9 +87,9 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar (tüm profiller, imajlar, ve
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v8.1 \"Symphony\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v9.0 \"Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
-	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|prod|core|gateway] [SERVICE=...]\033[0m"
+	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
 	@echo "  \033[1mKomutlar:\033[0m"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -90,7 +99,6 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo "    \033[32mmake start\033[0m                   # Kayıtlı profili (veya dev) kullanarak başlatır."
 	@echo "    \033[32mmake logs SERVICE=agent-service\033[0m # Mevcut profildeki agent loglarını izler."
 	@echo ""
-
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
