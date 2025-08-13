@@ -1,5 +1,6 @@
 # .gitignore
 .env
 .env.*
+!.env.example
 sentiric-config/
-.env.generated # Bu dosyayı asla commit'leme
+.profile.state

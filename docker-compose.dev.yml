@@ -1,0 +1,42 @@
+# docker-compose.dev.yml
+version: '3.8'
+services:
+  postgres: { image: postgres:16-alpine }
+  rabbitmq: { image: rabbitmq:4.1.0-management-alpine }
+  redis: { image: redis:7-alpine }
+  qdrant: { image: qdrant/qdrant:latest }
+  
+  user-service:
+    build: { context: ../sentiric-user-service, args: { SERVICE_NAME: sentiric-user-service } }
+  dialplan-service:
+    build: { context: ../sentiric-dialplan-service, args: { SERVICE_NAME: sentiric-dialplan-service } }
+  agent-service:
+    build: { context: ../sentiric-agent-service, args: { SERVICE_NAME: sentiric-agent-service } }
+  cdr-service:
+    build: { context: ../sentiric-cdr-service, args: { SERVICE_NAME: sentiric-cdr-service } }
+  media-service:
+    build: { context: ../sentiric-media-service, args: { SERVICE_NAME: sentiric-media-service } }
+  sip-signaling:
+    build: { context: ../sentiric-sip-signaling-service, args: { SERVICE_NAME: sentiric-sip-signaling-service } }
+  sip-gateway:
+    build: { context: ../sentiric-sip-gateway-service, args: { SERVICE_NAME: sentiric-sip-gateway-service } }
+  api-gateway:
+    build: { context: ../sentiric-api-gateway-service, args: { SERVICE_NAME: sentiric-api-gateway-service } }
+  connectors-service:
+    build: { context: ../sentiric-connectors-service }
+  task-service:
+    build: { context: ../sentiric-task-service }
+  task-service-worker:
+    build: { context: ../sentiric-task-service }
+  llm-service:
+    build: { context: ../sentiric-llm-service }
+  stt-service:
+    build: { context: ../sentiric-stt-service }
+  knowledge-service:
+    build: { context: ../sentiric-knowledge-service }
+  messaging-gateway:
+    build: { context: ../sentiric-messaging-gateway-service }
+  dashboard-ui:
+    build: { context: ../sentiric-dashboard-ui }
+  web-agent-ui:
+    build: { context: ../sentiric-web-agent-ui }

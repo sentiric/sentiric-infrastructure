@@ -1,85 +1,106 @@
-# Makefile - Sentiric Platform Orkestratörü v5.5 (Hibrit Ortam Uyumlu)
+# Sentiric Orchestrator v8.0 "Symphony"
+# Usage: make <command> [SERVICE=...] [PROFILE=dev|prod|core|gateway]
 
-# --- Değişkenler ---
-ENV ?= development
-TAG ?= latest
-SERVICES ?=
+# --- Otomatik Konfigürasyon ---
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
 
-# --- Dosya Yolları ---
-CONFIG_REPO_PATH := ../sentiric-config
-COMMON_ENV_FILE := $(CONFIG_REPO_PATH)/environments/common.env
-SPECIFIC_ENV_FILE := $(CONFIG_REPO_PATH)/environments/$(ENV).env
-TARGET_ENV_FILE := .env.generated
-DETECTED_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7}' || hostname -I | awk '{print $$1}')
+# Kullanıcı bir profil belirtmezse, .profile.state dosyasından okur, o da yoksa 'dev' kullanır.
+PROFILE ?= $(shell cat .profile.state 2>/dev/null || echo dev)
 
-# --- HİBRİT ORTAM İÇİN AKILLI COMPOSE DOSYASI SEÇİMİ ---
-# Hangi ortamda hangi compose dosyasının kullanılacağını tanımlıyoruz.
-ifeq ($(ENV),gcp_gateway_only)
-    PROD_COMPOSE_FILE := -f docker-compose.gateway.yml
-else ifeq ($(ENV),wsl_core_services)
-    PROD_COMPOSE_FILE := -f docker-compose.core.yml
-else
-    # Varsayılan "development" veya tam "production" ortamı için tüm dosyaları kullan
-    PROD_COMPOSE_FILE := -f docker-compose.core.yml -f docker-compose.gateway.yml
+# Profile göre kullanılacak dosyaları ve env dosyasının adını belirle
+ifeq ($(PROFILE),dev)
+    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.dev.yml
+    ENV_CONFIG_PROFILE := dev
+else ifeq ($(PROFILE),gateway)
+    # Gateway, prod.yml'deki imaj tanımlarını kullanır ama sadece gateway servisini içerir.
+    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
+    SERVICES := sip-gateway api-gateway
+    ENV_CONFIG_PROFILE := gateway
+else ifeq ($(PROFILE),core)
+    # Core, prod.yml'deki imaj tanımlarını kullanır ama gateway servislerini hariç tutar.
+    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
+    SERVICES := $(shell docker compose -f docker-compose.base.yml config --services | grep -v 'gateway')
+    ENV_CONFIG_PROFILE := core
+else # Tam üretim (prod)
+    COMPOSE_FILES := -f docker-compose.base.yml -f docker-compose.prod.yml
+    ENV_CONFIG_PROFILE := prod
 endif
+ENV_FILE := .env.$(ENV_CONFIG_PROFILE)
 
-# Yerel geliştirme için her zaman ana yml dosyası kullanılır
-DEV_COMPOSE_FILE := -f docker-compose.yml
 
-# --- Ana Komutlar ---
-up: generate-env
-	@echo "▶️  Yerel geliştirme ortamı ($(ENV)) başlatılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(DEV_COMPOSE_FILE) up -d --build --remove-orphans $(SERVICES)
+# --- Sezgisel Komutlar ---
 
-deploy: generate-env
-	@echo "🚀 Platform '$(ENV)' ortamı için [ghcr.io] imajları (TAG: $(TAG)) ile dağıtılıyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) pull $(SERVICES)
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) up -d --remove-orphans --no-deps $(SERVICES)
+start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
+	@echo "🎻 Orkestra hazırlanıyor... Profil: $(PROFILE)"
+	@echo "$(PROFILE)" > .profile.state
+	@$(MAKE) _sync_config
+	@$(MAKE) _generate_env
+	@if [ "$(PROFILE)" = "dev" ]; then \
+		echo "🚀 Kaynak koddan inşa edilerek geliştirme ortamı başlatılıyor..."; \
+		CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICES); \
+	else \
+		echo "🚀 Hazır imajlarla '$(PROFILE)' profili dağıtılıyor..."; \
+		CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) pull $(SERVICES); \
+		CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICES); \
+	fi
 
-down:
-	@echo "🛑 Platform durduruluyor ve tüm veriler (volume'ler) siliniyor..."
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(DEV_COMPOSE_FILE) $(PROD_COMPOSE_FILE) down --volumes
-	@echo "🧹 Geçici yapılandırma dosyası ($(TARGET_ENV_FILE)) temizleniyor..."
-	@rm -f $(TARGET_ENV_FILE)
+stop: ## ⏹️ Platformu durdurur (Mevcut Profil)
+	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
+	CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) down
 
-# --- Yönetim Komutları (Artık Ortama Duyarlı) ---
-logs: generate-env
-	@echo "📜 Loglar izleniyor: $(if $(SERVICES),$(SERVICES),tüm servisler)... (Ctrl+C ile çık)"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) logs -f $(SERVICES)
+restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
+	@$(MAKE) stop
+	@$(MAKE) start
 
-ps: generate-env
-	@echo "📊 Konteyner durumu:"
-	CONFIG_REPO_PATH=$(CONFIG_REPO_PATH) TAG=$(TAG) docker compose --env-file $(TARGET_ENV_FILE) $(PROD_COMPOSE_FILE) ps $(SERVICES)
+status: ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
+	@echo "📊 Platform durumu... Profil: $(PROFILE)"
+	CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE)
 
-# --- Hibrit Dağıtım Kısayolları ---
-# Artık doğrudan 'deploy' hedefini doğru ENV ile çağırabiliriz
-deploy-gateway:
-	@$(MAKE) ENV=gcp_gateway_only deploy
+logs: ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
+	@echo "📜 Loglar izleniyor... Profil: $(PROFILE) $(if $(SERVICE),Servis: $(SERVICE),)"
+	CONFIG_REPO_PATH=../sentiric-config docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE)
 
-deploy-core:
-	@$(MAKE) ENV=wsl_core_services deploy
+clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar (tüm profiller, imajlar, veriler)
+	@read -p "DİKKAT: TÜM Docker verileri (imajlar, volumelar dahil) silinecek. Onaylıyor musunuz? (y/N) " choice; \
+	if [[ "$$choice" == "y" || "$$choice" == "Y" ]]; then \
+		echo "🧹 Platform temizleniyor..."; \
+		docker compose -f docker-compose.base.yml -f docker-compose.dev.yml -f docker-compose.prod.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker rmi -f $$(docker images -aq) 2>/dev/null || true; \
+		docker builder prune -af --force 2>/dev/null || true; \
+		rm -f .env.* .profile.state; \
+		echo "Temizlik tamamlandı."; \
+	else \
+		echo "İşlem iptal edildi."; \
+	fi
 
-# --- Yardımcı Komutlar (DEĞİŞİKLİK YOK) ---
-generate-env: sync-config
-	@echo "🔧 Dinamik yapılandırma dosyası ($(TARGET_ENV_FILE)) oluşturuluyor..."
-	@cp "$(COMMON_ENV_FILE)" $(TARGET_ENV_FILE)
-	@echo "\n# --- $(ENV).env tarafından üzerine yazılan/eklenen değerler ---" >> $(TARGET_ENV_FILE)
-	@cat "$(SPECIFIC_ENV_FILE)" >> $(TARGET_ENV_FILE)
-	@echo "\n# --- Makefile tarafından dinamik olarak eklendi ---" >> $(TARGET_ENV_FILE)
-	@echo "PUBLIC_IP=$(DETECTED_IP)" >> $(TARGET_ENV_FILE)
-	@echo "TAG=$(TAG)" >> $(TARGET_ENV_FILE)
+help: ## ℹ️ Bu yardım menüsünü gösterir
+	@echo ""
+	@echo "  \033[1mSentiric Orchestrator v8.0 \"Symphony\"\033[0m"
+	@echo "  -------------------------------------------"
+	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|prod|core|gateway] [SERVICE=...]\033[0m"
+	@echo ""
+	@echo "  \033[1mKomutlar:\033[0m"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "  Örnekler:"
+	@echo "    \033[32mmake start PROFILE=core\033[0m      # Çekirdek servisleri imajdan başlatır ve profili kaydeder."
+	@echo "    \033[32mmake start\033[0m                   # Kayıtlı profili (veya dev) kullanarak başlatır."
+	@echo "    \033[32mmake logs SERVICE=agent-service\033[0m # Mevcut profildeki agent loglarını izler."
+	@echo ""
 
-sync-config:
-	@if [ ! -d "$(CONFIG_REPO_PATH)" ]; then \
-		echo "🛠️ Güvenli yapılandırma reposu klonlanıyor (SSH)..."; \
-		git clone git@github.com:sentiric/sentiric-config.git $(CONFIG_REPO_PATH); \
+
+# --- Dahili Yardımcı Komutlar ---
+_generate_env:
+	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
+
+_sync_config:
+	@if [ ! -d "../sentiric-config" ]; then \
+		echo "🛠️ Güvenli yapılandırma reposu klonlanıyor..."; \
+		git clone git@github.com:sentiric/sentiric-config.git ../sentiric-config; \
 	else \
 		echo "🔄 Güvenli yapılandırma reposu güncelleniyor..."; \
-		(cd $(CONFIG_REPO_PATH) && git pull); \
-	fi
-	@if [ ! -f "$(COMMON_ENV_FILE)" ] || [ ! -f "$(SPECIFIC_ENV_FILE)" ]; then \
-		echo "❌ HATA: Gerekli yapılandırma dosyaları bulunamadı: $(COMMON_ENV_FILE) veya $(SPECIFIC_ENV_FILE)"; \
-		exit 1; \
+		(cd ../sentiric-config && git pull); \
 	fi
 
-.PHONY: up deploy down logs ps deploy-gateway deploy-core generate-env sync-config
+.PHONY: start stop restart status logs clean help _generate_env _sync_config
