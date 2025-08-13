@@ -1,25 +1,49 @@
 # docker-compose.prod.yml
-version: '3.8'
 services:
-  postgres: { image: postgres:16-alpine }
-  rabbitmq: { image: rabbitmq:4.1.0-management-alpine }
-  redis: { image: redis:7-alpine }
-  qdrant: { image: qdrant/qdrant:latest }
-
-  user-service: { image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest} }
-  dialplan-service: { image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest} }
-  agent-service: { image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest} }
-  cdr-service: { image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest} }
-  media-service: { image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest} }
-  sip-signaling: { image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest} }
-  sip-gateway: { image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest} }
-  api-gateway: { image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest} }
-  connectors-service: { image: ghcr.io/sentiric/sentiric-connectors-service:${TAG:-latest} }
-  task-service: { image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest} }
-  task-service-worker: { image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest} }
-  llm-service: { image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest} }
-  stt-service: { image: ghcr.io/sentiric/sentiric-stt-service:${TAG:-latest} }
-  knowledge-service: { image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest} }
-  messaging-gateway: { image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest} }
-  dashboard-ui: { image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest} }
-  web-agent-ui: { image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest} }
+  # Altyapı imajları
+  postgres:
+    image: postgres:16-alpine
+  rabbitmq:
+    image: rabbitmq:4.1.0-management-alpine
+  redis:
+    image: redis:7-alpine
+  qdrant:
+    image: qdrant/qdrant:latest
+  flower:
+    image: mher/flower
+    
+  # Uygulama servisleri için imaj direktifleri
+  user-service:
+    image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
+  dialplan-service:
+    image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
+  agent-service:
+    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
+  cdr-service:
+    image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest}
+  media-service:
+    image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
+  sip-signaling:
+    image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
+  sip-gateway:
+    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
+  api-gateway:
+    image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest}
+  connectors-service:
+    image: ghcr.io/sentiric/sentiric-connectors-service:${TAG:-latest}
+  task-service:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+  task-service-worker:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+  llm-service:
+    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
+  stt-service:
+    image: ghcr.io/sentiric/sentiric-stt-service:${TAG:-latest}
+  knowledge-service:
+    image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest}
+  messaging-gateway:
+    image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
+  dashboard-ui:
+    image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
+  web-agent-ui:
+    image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
