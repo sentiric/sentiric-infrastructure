@@ -197,6 +197,7 @@ services:
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy } }
 
+  # --- UI SERVİSLERİ ---
   dashboard-ui:
     image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
     container_name: sentiric-core-dashboard-ui-1
@@ -204,7 +205,7 @@ services:
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
     networks: [sentiric-net]
     restart: always
-    depends_on: [api-gateway]
+    # depends_on: [api-gateway] # <-- BU SATIRI SİL VEYA YORUMA AL
 
   web-agent-ui:
     image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
@@ -213,4 +214,4 @@ services:
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
     networks: [sentiric-net]
     restart: always
-    depends_on: [api-gateway]
+    # depends_on: [api-gateway] # <-- BU SATIRI SİL VEYA YORUMA AL
