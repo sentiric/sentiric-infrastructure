@@ -13,7 +13,7 @@ volumes:
   whatsapp_session:
 
 services:
-  # --- VERİ KATMANI (İMAJDAN) ---
+  # --- VERİ KATMANI ---
   postgres:
     image: postgres:16-alpine
     container_name: sentiric-dev-postgres-1
@@ -76,7 +76,7 @@ services:
           condition: service_healthy
         task-service-worker:
           condition: service_started
-
+          
   # --- UYGULAMA SERVİSLERİ (KAYNAK KODDAN İNŞA EDİLİR) ---
   user-service:
     container_name: sentiric-dev-user-service-1
@@ -101,7 +101,7 @@ services:
     build: { context: ../sentiric-agent-service, args: { SERVICE_NAME: sentiric-agent-service } }
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
-    ports: ["9091:9091"]
+    ports: ["${METRICS_PORT_AGENT:-9091}:9091"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
@@ -111,7 +111,7 @@ services:
     build: { context: ../sentiric-cdr-service, args: { SERVICE_NAME: sentiric-cdr-service } }
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
-    ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
+    ports: ["${CDR_SERVICE_PORT:-5004}:5004", "${METRICS_PORT_CDR:-9092}:9092"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
@@ -187,6 +187,7 @@ services:
     container_name: sentiric-dev-llm-service-1
     build: { context: ../sentiric-llm-service }
     env_file: [".env.generated"]
+    ports: ["${LLM_SERVICE_PORT:-7860}:7860"]
     networks: [sentiric-net]
     restart: always
     depends_on: [agent-service]
@@ -196,6 +197,7 @@ services:
     build: { context: ../sentiric-stt-service }
     env_file: [".env.generated"]
     volumes: [stt-model-cache:/root/.cache]
+    ports: ["${STT_SERVICE_PORT:-5001}:5001"]
     networks: [sentiric-net]
     restart: always
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:5001/health"], interval: 30s, timeout: 10s, retries: 3, start_period: 120s }

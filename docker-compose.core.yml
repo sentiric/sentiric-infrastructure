@@ -65,24 +65,23 @@ services:
     restart: always
 
   flower:
-      image: mher/flower
-      container_name: sentiric-core-flower-1
-      env_file: [".env.generated"]
-      ports: ["${FLOWER_PORT:-5555}:5555"]
-      networks: [sentiric-net]
-      restart: always
-      depends_on:
-        rabbitmq:
-          condition: service_healthy
-        task-service-worker:
-          condition: service_started
-
+    image: mher/flower
+    container_name: sentiric-core-flower-1
+    env_file: [".env.generated"]
+    ports: ["${FLOWER_PORT:-5555}:5555"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      task-service-worker:
+        condition: service_started
   # --- UYGULAMA SERVİSLERİ (İMAJDAN) ---
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
     container_name: sentiric-core-user-service-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy } }
@@ -91,7 +90,7 @@ services:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
     container_name: sentiric-core-dialplan-service-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy } }
@@ -100,8 +99,8 @@ services:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
     container_name: sentiric-core-agent-service-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
-    ports: ["9091:9091"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
+    ports: ["${METRICS_PORT_AGENT:-9091}:9091"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
@@ -110,8 +109,8 @@ services:
     image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest}
     container_name: sentiric-core-cdr-service-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
-    ports: ["${CDR_SERVICE_PORT:-5004}:5004", "9092:9092"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
+    ports: ["${CDR_SERVICE_PORT:-5004}:5004", "${METRICS_PORT_CDR:-9092}:9092"]
     networks: [sentiric-net]
     restart: always
     depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
@@ -120,7 +119,7 @@ services:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
     container_name: sentiric-core-media-service-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"]
     networks: [sentiric-net]
     restart: always
@@ -130,7 +129,7 @@ services:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
     container_name: sentiric-core-sip-signaling-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
+    volumes: ["../sentiric-config/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy }, media-service: { condition: service_started } }
@@ -168,6 +167,7 @@ services:
     image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
     container_name: sentiric-core-llm-service-1
     env_file: [".env.generated"]
+    ports: ["${LLM_SERVICE_PORT:-7860}:7860"]
     networks: [sentiric-net]
     restart: always
     depends_on: [agent-service]
@@ -177,6 +177,7 @@ services:
     container_name: sentiric-core-stt-service-1
     env_file: [".env.generated"]
     volumes: [stt-model-cache:/root/.cache]
+    ports: ["${STT_SERVICE_PORT:-5001}:5001"]
     networks: [sentiric-net]
     restart: always
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:5001/health"], interval: 30s, timeout: 10s, retries: 3, start_period: 120s }
@@ -200,7 +201,6 @@ services:
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy } }
 
-  # --- UI SERVİSLERİ ---
   dashboard-ui:
     image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
     container_name: sentiric-core-dashboard-ui-1
@@ -208,8 +208,7 @@ services:
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
     networks: [sentiric-net]
     restart: always
-    # depends_on: [api-gateway] # <-- BU SATIRI SİL VEYA YORUMA AL
-
+    
   web-agent-ui:
     image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
     container_name: sentiric-core-web-agent-ui-1
@@ -217,4 +216,3 @@ services:
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
     networks: [sentiric-net]
     restart: always
-    # depends_on: [api-gateway] # <-- BU SATIRI SİL VEYA YORUMA AL
