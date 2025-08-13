@@ -65,15 +65,19 @@ services:
     restart: always
 
   flower:
-    image: mher/flower
-    container_name: sentiric-dev-flower-1
-    env_file: [".env.generated"]
-    command: ["celery", "-A", "app.core.celery_app", "--broker=${RABBITMQ_URL}", "flower"]
-    ports: ["${FLOWER_PORT:-5555}:5555"]
-    networks: [sentiric-net]
-    restart: always
-    depends_on: { rabbitmq: { condition: service_healthy }, task-service-worker: { condition: service_started } }
-
+      image: mher/flower
+      container_name: sentiric-dev-flower-1
+      env_file: [".env.generated"]
+      command: ["--broker_api=http://sentiric:sentiric_pass@rabbitmq:15672/api/"]
+      ports: ["${FLOWER_PORT:-5555}:5555"]
+      networks: [sentiric-net]
+      restart: always
+      depends_on:
+        rabbitmq:
+          condition: service_healthy
+        task-service-worker:
+          condition: service_started
+          
   # --- UYGULAMA SERVİSLERİ (KAYNAK KODDAN İNŞA EDİLİR) ---
   user-service:
     container_name: sentiric-dev-user-service-1
