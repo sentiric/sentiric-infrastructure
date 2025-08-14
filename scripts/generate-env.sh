@@ -2,8 +2,7 @@
 set -e
 
 # Bu script, Docker Compose için son .env dosyasını oluşturur.
-# Kendi konumunu bularak, 'source' komutlarındaki göreceli yolları
-# güvenilir bir şekilde mutlak yollara çevirir ve doğru dosyaları birleştirir.
+# Profil dosyasındaki basit 'source' yollarını alıp, ana config dizinine göre birleştirir.
 
 PROFILE=${1:-dev}
 
@@ -34,10 +33,11 @@ echo "" >> "$OUTPUT_FILE"
 # --- KAYNAK DOSYALARINI BİRLEŞTİRME ---
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ $line == source* ]]; then
+        # `source common/platform.env` gibi bir satırdan dosya yolunu al
         relative_path=$(echo "$line" | cut -d' ' -f2)
         
-        # DÜZELTME: Yolu, profil dosyasının bulunduğu dizine göre çöz
-        source_file_path=$(realpath "$(dirname "$PROFILE_FILE")/$relative_path")
+        # DÜZELTME: Yolu her zaman CONFIG_BASE_DIR'e göre birleştir
+        source_file_path="${CONFIG_BASE_DIR}/${relative_path}"
         
         if [ -f "$source_file_path" ]; then
             grep -vE '^\s*#|^\s*$' "$source_file_path" >> "$OUTPUT_FILE"
