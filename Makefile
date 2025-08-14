@@ -94,6 +94,8 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
+	@# DÜZELTME: Script'i çalıştırmadan önce Windows satır sonlarını temizle
+	@dos2unix scripts/generate-env.sh 2>/dev/null || true
 	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
 _sync_config:
