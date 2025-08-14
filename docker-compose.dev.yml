@@ -104,7 +104,13 @@ services:
     ports: ["${METRICS_PORT_AGENT:-9091}:9091"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
+    depends_on: 
+      postgres: 
+        condition: service_healthy 
+      rabbitmq: 
+        condition: service_healthy
+      tts-gateway:
+        condition: service_healthy # DÜZELTME: 'service_started' yerine 'service_healthy' olmalı
 
   cdr-service:
     container_name: sentiric-dev-cdr-service-1
@@ -190,7 +196,9 @@ services:
     ports: ["${LLM_SERVICE_PORT:-7860}:7860"]
     networks: [sentiric-net]
     restart: always
-    depends_on: [agent-service]
+    depends_on:
+      agent-service:
+        condition: service_started
 
   stt-service:
     container_name: sentiric-dev-stt-service-1
@@ -201,6 +209,58 @@ services:
     networks: [sentiric-net]
     restart: always
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:5001/health"], interval: 30s, timeout: 10s, retries: 3, start_period: 120s }
+
+  # --- YENİ SES ORKESTRASYON KATMANI ---
+  tts-gateway:
+    container_name: sentiric-dev-tts-gateway-1
+    build: 
+      context: ../sentiric-tts-gateway-service
+      args: 
+        SERVICE_NAME: sentiric-tts-gateway-service
+    env_file: [".env.generated"]
+    ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      tts-coqui-service:
+        condition: service_healthy
+      tts-edge-service:
+        condition: service_healthy
+    healthcheck:
+      # DÜZELTME: netcat yerine gRPC health probe aracı kullanmak daha güvenilir olurdu,
+      # ancak şimdilik netcat'i koruyup start_period'u artırıyoruz.
+      test: ["CMD", "nc", "-z", "localhost", "50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # DÜZELTME: Başlangıç periyodunu uzatıyoruz.
+
+  tts-coqui-service:
+    container_name: sentiric-dev-tts-coqui-1
+    build: { context: ../sentiric-tts-coqui-service }
+    env_file: [".env.generated"]
+    networks: [sentiric-net]
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
+  # YENİ UZMAN MOTOR: edge-tts-service
+  tts-edge-service:
+    container_name: sentiric-dev-tts-edge-1
+    build: { context: ../sentiric-tts-edge-service }
+    env_file: [".env.generated"]
+    networks: [sentiric-net]
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   knowledge-service:
     container_name: sentiric-dev-knowledge-service-1
