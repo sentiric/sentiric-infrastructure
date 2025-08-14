@@ -93,11 +93,7 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
-	@echo "--- _generate_env HEDEFİ ÇALIŞTIRILIYOR ---"
-	# DÜZELTME: @ işaretini kaldırarak komutun kendisini ve hatasını görelim
-	chmod +x scripts/generate-env.sh
-	bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
-	@echo "--- _generate_env HEDEFİ TAMAMLANDI ---"
+	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
 _sync_config:
 	@if [ ! -d "../sentiric-config" ]; then \
