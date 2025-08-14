@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v11.6 "Final Conductor"
+# Sentiric Orchestrator v12.0 "Final Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -21,43 +21,38 @@ endif
 
 # --- Sezgisel Komutlar ---
 
-start: _sync_config _generate_env ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
+start: _sync_config _generate_env ## ▶️ Platformu başlatır/günceller
 	@echo "🎻 Orkestra hazırlanıyor... Profil: $(PROFILE)"
 	@echo "$(PROFILE)" > .profile.state
-	@# DÜZELTME: docker compose komutunu, env dosyasını source eden bir subshell içinde çalıştır.
-	@bash -c 'set -a; source $(ENV_FILE); set +a; \
-	if [ "$(PROFILE)" = "dev" ]; then \
+	@if [ "$(PROFILE)" = "dev" ]; then \
 		echo "🚀 Kaynak koddan inşa edilerek geliştirme ortamı başlatılıyor..."; \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
 	else \
-		echo "🚀 Hazır imajlarla '\''$(PROFILE)'\'' profili dağıtılıyor..."; \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) pull $(SERVICE); \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICE); \
-	fi'
+		echo "🚀 Hazır imajlarla '$(PROFILE)' profili dağıtılıyor..."; \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) pull $(SERVICE); \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICE); \
+	fi
 
-stop: _generate_env ## ⏹️ Platformu durdurur (Mevcut Profil)
+stop: _generate_env ## ⏹️ Platformu durdurur
 	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
-	@bash -c 'set -a; source $(ENV_FILE); set +a; \
-	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) down -v; \
-	fi'
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v; \
+	fi
 
-restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
+restart: ## 🔄 Platformu yeniden başlatır
 	@$(MAKE) stop; $(MAKE) start
 
-status: _generate_env ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
+status: ## 📊 Servislerin durumunu gösterir
 	@echo "📊 Platform durumu... Profil: $(PROFILE)"
-	@bash -c 'set -a; source $(ENV_FILE); set +a; \
-	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) ps $(SERVICE); \
-	fi'
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE); \
+	fi
 
-logs: _generate_env ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
+logs: ## 📜 Servislerin loglarını canlı izler
 	@echo "📜 Loglar izleniyor... Profil: $(PROFILE) $(if $(SERVICE),Servis: $(SERVICE),)"
-	@bash -c 'set -a; source $(ENV_FILE); set +a; \
-	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
-	fi'
+	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
+	fi
 
 clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 	@read -p "DİKKAT: TÜM Docker verileri silinecek. Onaylıyor musunuz? (y/N) " choice; \
@@ -79,7 +74,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.6 \"Final Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v12.0 \"Final Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
@@ -92,14 +87,9 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo "    \033[32mmake logs SERVICE=agent-service\033[0m # Mevcut profildeki agent loglarını izler."
 	@echo ""
 
-
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
-	@echo "--- _generate_env HEDEFİ ÇALIŞTIRILIYOR ---"
-	# DÜZELTME: @ işaretini kaldırarak komutun kendisini ve hatasını görelim
-	chmod +x scripts/generate-env.sh
-	bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
-	@echo "--- _generate_env HEDEFİ TAMAMLANDI ---"
+	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
 _sync_config:
 	@if [ ! -d "../sentiric-config" ]; then \
