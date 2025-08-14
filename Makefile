@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v11.3 "Universal Conductor"
+# Sentiric Orchestrator v11.4 "Bulletproof Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -77,7 +77,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.3 \"Universal Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v11.4 \"Universal Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
@@ -93,6 +93,8 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
+	@# DÜZELTME: Script'e çalıştırma izni ver ve bash ile çalıştır
+	@chmod +x scripts/generate-env.sh
 	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
 _sync_config:
