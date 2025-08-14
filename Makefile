@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v12.0 "Final Conductor"
+# Sentiric Orchestrator v12.1 "Final Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -24,6 +24,8 @@ endif
 start: _sync_config _generate_env ## ▶️ Platformu başlatır/günceller
 	@echo "🎻 Orkestra hazırlanıyor... Profil: $(PROFILE)"
 	@echo "$(PROFILE)" > .profile.state
+	@# --env-file direktifi sayesinde değişkenler konteynerlere geçer.
+	@# Docker Compose'un kendisi bu değişkenleri Makefile'dan miras almaz.
 	@if [ "$(PROFILE)" = "dev" ]; then \
 		echo "🚀 Kaynak koddan inşa edilerek geliştirme ortamı başlatılıyor..."; \
 		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
@@ -86,6 +88,7 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo "    \033[32mmake start\033[0m                   # Kayıtlı profili (veya dev) kullanarak başlatır."
 	@echo "    \033[32mmake logs SERVICE=agent-service\033[0m # Mevcut profildeki agent loglarını izler."
 	@echo ""
+
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
