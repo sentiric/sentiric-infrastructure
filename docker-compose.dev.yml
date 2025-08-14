@@ -110,7 +110,7 @@ services:
       rabbitmq: 
         condition: service_healthy
       tts-gateway:
-        condition: service_healthy # DÜZELTME: 'service_started' yerine 'service_healthy' olmalı
+        condition: service_healthy
 
   cdr-service:
     container_name: sentiric-dev-cdr-service-1
@@ -210,7 +210,7 @@ services:
     restart: always
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:5001/health"], interval: 30s, timeout: 10s, retries: 3, start_period: 120s }
 
-  # --- YENİ SES ORKESTRASYON KATMANI ---
+  # --- SES ORKESTRASYON KATMANI ---
   tts-gateway:
     container_name: sentiric-dev-tts-gateway-1
     build: 
@@ -227,13 +227,11 @@ services:
       tts-edge-service:
         condition: service_healthy
     healthcheck:
-      # DÜZELTME: netcat yerine gRPC health probe aracı kullanmak daha güvenilir olurdu,
-      # ancak şimdilik netcat'i koruyup start_period'u artırıyoruz.
       test: ["CMD", "nc", "-z", "localhost", "50051"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s # DÜZELTME: Başlangıç periyodunu uzatıyoruz.
+      start_period: 30s
 
   tts-coqui-service:
     container_name: sentiric-dev-tts-coqui-1
@@ -248,11 +246,11 @@ services:
       retries: 5
       start_period: 5m
 
-  # YENİ UZMAN MOTOR: edge-tts-service
   tts-edge-service:
     container_name: sentiric-dev-tts-edge-1
     build: { context: ../sentiric-tts-edge-service }
     env_file: [".env.generated"]
+    ports: ["${TTS_EDGE_SERVICE_PORT:-5006}:5006"] # DÜZELTME: Benzersiz port ataması
     networks: [sentiric-net]
     restart: always
     healthcheck:
@@ -275,6 +273,7 @@ services:
   messaging-gateway:
     container_name: sentiric-dev-messaging-gateway-1
     build: { context: ../sentiric-messaging-gateway-service }
+    # DÜZELTME: Başlangıçta kilit dosyasını sil
     command: sh -c "rm -f /app/wweb_auth/SingletonLock && node dist/index.js"
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
