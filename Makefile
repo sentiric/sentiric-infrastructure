@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v11.2 "Resilient Conductor"
+# Sentiric Orchestrator v11.3 "Universal Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -77,7 +77,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.2 \"Resilient Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v11.3 \"Universal Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
