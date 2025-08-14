@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v11.4 "Bulletproof Conductor"
+# Sentiric Orchestrator v11.5 "Final Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -21,40 +21,43 @@ endif
 
 # --- Sezgisel Komutlar ---
 
-start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
+start: _sync_config _generate_env ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
 	@echo "🎻 Orkestra hazırlanıyor... Profil: $(PROFILE)"
 	@echo "$(PROFILE)" > .profile.state
-	@$(MAKE) _sync_config
-	@$(MAKE) _generate_env
-	@if [ "$(PROFILE)" = "dev" ]; then \
+	@# DÜZELTME: Değişkenleri export et ve ardından docker compose'u çağır.
+	@export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
+	if [ "$(PROFILE)" = "dev" ]; then \
 		echo "🚀 Kaynak koddan inşa edilerek geliştirme ortamı başlatılıyor..."; \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) up -d --build --remove-orphans $(SERVICE); \
 	else \
 		echo "🚀 Hazır imajlarla '$(PROFILE)' profili dağıtılıyor..."; \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) pull $(SERVICE); \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICE); \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) pull $(SERVICE); \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) up -d --remove-orphans --no-deps $(SERVICE); \
 	fi
 
-stop: ## ⏹️ Platformu durdurur (Mevcut Profil)
+stop: _generate_env ## ⏹️ Platformu durdurur (Mevcut Profil)
 	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
-	@$(MAKE) _generate_env
-	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v; \
+	@# DÜZELTME: Değişkenleri export et ve ardından docker compose'u çağır.
+	@export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
+	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) down -v; \
 	fi
 
 restart: ## 🔄 Platformu yeniden başlatır (Mevcut Profil)
 	@$(MAKE) stop; $(MAKE) start
 
-status: ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
+status: _generate_env ## 📊 Servislerin anlık durumunu gösterir (Mevcut Profil)
 	@echo "📊 Platform durumu... Profil: $(PROFILE)"
-	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) ps $(SERVICE); \
+	@export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
+	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) ps $(SERVICE); \
 	fi
 
-logs: ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
+logs: _generate_env ## 📜 Servislerin loglarını canlı izler (Mevcut Profil)
 	@echo "📜 Loglar izleniyor... Profil: $(PROFILE) $(if $(SERVICE),Servis: $(SERVICE),)"
-	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
-		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
+	@export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
+	if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
+		docker compose -p sentiric-$(PROFILE) $(COMPOSE_FILES) logs -f $(SERVICE); \
 	fi
 
 clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
@@ -77,7 +80,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.4 \"Universal Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v11.5 \"Final Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
