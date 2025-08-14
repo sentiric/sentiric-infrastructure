@@ -1,4 +1,4 @@
-# Sentiric Orchestrator v11.2 "Universal Conductor"
+# Sentiric Orchestrator v11.2 "Resilient Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
@@ -77,7 +77,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.1 \"Resilient Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v11.2 \"Resilient Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
@@ -90,9 +90,10 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo "    \033[32mmake logs SERVICE=agent-service\033[0m # Mevcut profildeki agent loglarını izler."
 	@echo ""
 
+
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
-	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE) # Sadece çalıştır, dos2unix'e gerek yok.
+	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
 _sync_config:
 	@if [ ! -d "../sentiric-config" ]; then \
@@ -102,4 +103,5 @@ _sync_config:
 		echo "🔄 Güvenli yapılandırma reposu güncelleniyor..."; \
 		(cd ../sentiric-config && git pull); \
 	fi
-# ... (Makefile'ın geri kalanı aynı kalabilir) ...
+
+.PHONY: start stop restart status logs clean help _generate_env _sync_config
