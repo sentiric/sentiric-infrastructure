@@ -1,15 +1,13 @@
-# Sentiric Orchestrator v11.0 "Final Conductor"
+# Sentiric Orchestrator v11.1 "Resilient Conductor"
 # Usage: make <command> [PROFILE=dev|core|gateway] [SERVICE=...]
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # --- Otomatik Konfigürasyon ---
-# Kullanıcı profil belirtmezse, state dosyasından oku, o da yoksa 'dev' kullan.
 PROFILE ?= $(shell cat .profile.state 2>/dev/null || echo dev)
 ENV_FILE := .env.generated
 
-# Profile göre kullanılacak dosyayı ve env profilini belirle
 ifeq ($(PROFILE),core)
     COMPOSE_FILES := -f docker-compose.core.yml
     ENV_CONFIG_PROFILE := core
@@ -39,6 +37,8 @@ start: ## ▶️ Platformu başlatır/günceller (Mevcut/Belirtilen Profil ile)
 
 stop: ## ⏹️ Platformu durdurur (Mevcut Profil)
 	@echo "🛑 Platform durduruluyor... Profil: $(PROFILE)"
+	@# DÜZELTME: Durdurmadan önce .env dosyasının var olduğundan emin ol
+	@$(MAKE) _generate_env
 	@if [ -f "$(firstword $(subst -f ,,$(COMPOSE_FILES)))" ]; then \
 		docker compose -p sentiric-$(PROFILE) --env-file $(ENV_FILE) $(COMPOSE_FILES) down -v; \
 	fi
@@ -78,7 +78,7 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 
 help: ## ℹ️ Bu yardım menüsünü gösterir
 	@echo ""
-	@echo "  \033[1mSentiric Orchestrator v11.0 \"Final Conductor\"\033[0m"
+	@echo "  \033[1mSentiric Orchestrator v11.1 \"Resilient Conductor\"\033[0m"
 	@echo "  -------------------------------------------"
 	@echo "  Kullanım: \033[36mmake <command> [PROFILE=dev|core|gateway] [SERVICE=...]\033[0m"
 	@echo ""
@@ -94,7 +94,6 @@ help: ## ℹ️ Bu yardım menüsünü gösterir
 
 # --- Dahili Yardımcı Komutlar ---
 _generate_env:
-	@# DÜZELTME: Script'i çalıştırmadan önce Windows satır sonlarını temizle
 	@dos2unix scripts/generate-env.sh 2>/dev/null || true
 	@bash scripts/generate-env.sh $(ENV_CONFIG_PROFILE)
 
