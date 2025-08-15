@@ -1,4 +1,4 @@
-# docker-compose.core.yml
+# docker-compose.free.yml
 
 networks:
   sentiric-net:
@@ -12,45 +12,48 @@ volumes:
 
 services:
   # --- ZORUNLU VERİ KATMANI ---
-  postgres:
-    image: postgres:16-alpine
-    container_name: sentiric-free-postgres-1
-    env_file: [".env.generated"]
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
-    networks: [sentiric-net]
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # neon.teach
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: sentiric-free-postgres-1
+  #   env_file: [".env.generated"]
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  rabbitmq:
-    image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric-free-rabbitmq-1
-    env_file: [".env.generated"]
-    volumes: [rabbitmq_data:/var/lib/rabbitmq/]
-    networks: [sentiric-net]
-    restart: always
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      
-  redis:
-    image: redis:7-alpine
-    container_name: sentiric-free-redis-1
-    volumes: [redis_data:/data]
-    networks: [sentiric-net]
-    restart: always
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # cloudamqp
+  # rabbitmq:
+  #   image: rabbitmq:4.1.0-management-alpine
+  #   container_name: sentiric-free-rabbitmq-1
+  #   env_file: [".env.generated"]
+  #   volumes: [rabbitmq_data:/var/lib/rabbitmq/]
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # upstash   
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: sentiric-free-redis-1
+  #   volumes: [redis_data:/data]
+  #   networks: [sentiric-net]
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # --- ÇEKİRDEK UYGULAMA SERVİSLERİ (ÇAĞRI AKIŞI İÇİN ZORUNLU) ---
   user-service:

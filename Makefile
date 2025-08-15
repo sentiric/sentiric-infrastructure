@@ -14,6 +14,12 @@ ifeq ($(PROFILE),core)
 else ifeq ($(PROFILE),gateway)
     COMPOSE_FILES := -f docker-compose.gateway.yml
     ENV_CONFIG_PROFILE := gateway
+else ifeq ($(PROFILE),prod)
+    COMPOSE_FILES := -f docker-compose.prod.yml
+    ENV_CONFIG_PROFILE := prod	
+else ifeq ($(PROFILE),free)
+    COMPOSE_FILES := -f docker-compose.free.yml
+    ENV_CONFIG_PROFILE := free
 else # Varsayılan dev
     COMPOSE_FILES := -f docker-compose.dev.yml
     ENV_CONFIG_PROFILE := dev
@@ -63,6 +69,8 @@ clean: ## 🧹 Docker ortamını TAMAMEN sıfırlar
 		docker compose -p sentiric-dev -f docker-compose.dev.yml down -v --remove-orphans 2>/dev/null || true; \
 		docker compose -p sentiric-core -f docker-compose.core.yml down -v --remove-orphans 2>/dev/null || true; \
 		docker compose -p sentiric-gateway -f docker-compose.gateway.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -p sentiric-prod -f docker-compose.prod.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker compose -p sentiric-free -f docker-compose.free.yml down -v --remove-orphans 2>/dev/null || true; \
 		docker rm -f $$(docker ps -aq) 2>/dev/null || true; \
 		docker rmi -f $$(docker images -q) 2>/dev/null || true; \
 		docker volume prune -f 2>/dev/null || true; \

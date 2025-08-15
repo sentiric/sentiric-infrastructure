@@ -1,4 +1,4 @@
-# docker-compose.dev.yml
+# docker-compose.prod.yml
 
 networks:
   sentiric-net:
@@ -17,7 +17,7 @@ services:
   # --- VERİ KATMANI ---
   postgres:
     image: postgres:16-alpine
-    container_name: sentiric-dev-postgres-1
+    container_name: sentiric-core-postgres-1
     env_file: [".env.generated"]
     ports: ["5432:5432"]
     volumes:
@@ -33,7 +33,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric-dev-rabbitmq-1
+    container_name: sentiric-core-rabbitmq-1
     env_file: [".env.generated"]
     ports: ["15672:15672"]
     volumes: [rabbitmq_data:/var/lib/rabbitmq/]
@@ -44,10 +44,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      
+
   redis:
     image: redis:7-alpine
-    container_name: sentiric-dev-redis-1
+    container_name: sentiric-core-redis-1
     volumes: [redis_data:/data]
     networks: [sentiric-net]
     restart: always
@@ -59,29 +59,29 @@ services:
 
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: sentiric-dev-qdrant-1
+    container_name: sentiric-core-qdrant-1
     ports: ["${VECTOR_DB_PORT:-6333}:6333"]
     volumes: [qdrant_data:/qdrant/storage]
     networks: [sentiric-net]
     restart: always
 
   flower:
-      image: mher/flower
-      container_name: sentiric-dev-flower-1
-      env_file: [".env.generated"]
-      ports: ["${FLOWER_PORT:-5555}:5555"]
-      networks: [sentiric-net]
-      restart: always
-      depends_on:
-        rabbitmq:
-          condition: service_healthy
-        task-service-worker:
-          condition: service_started
-          
-  # --- UYGULAMA SERVİSLERİ (KAYNAK KODDAN İNŞA EDİLİR) ---
+    image: mher/flower
+    container_name: sentiric-core-flower-1
+    env_file: [".env.generated"]
+    ports: ["${FLOWER_PORT:-5555}:5555"]
+    networks: [sentiric-net]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      task-service-worker:
+        condition: service_started
+
+  # --- UYGULAMA SERVİSLERİ (İMAJDAN) ---
   user-service:
-    container_name: sentiric-dev-user-service-1
-    build: { context: ../sentiric-user-service, args: { SERVICE_NAME: sentiric-user-service } }
+    image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
+    container_name: sentiric-core-user-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -89,8 +89,8 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   dialplan-service:
-    container_name: sentiric-dev-dialplan-service-1
-    build: { context: ../sentiric-dialplan-service, args: { SERVICE_NAME: sentiric-dialplan-service } }
+    image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
+    container_name: sentiric-core-dialplan-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -98,24 +98,21 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   agent-service:
-    container_name: sentiric-dev-agent-service-1
-    build: { context: ../sentiric-agent-service, args: { SERVICE_NAME: sentiric-agent-service } }
+    image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
+    container_name: sentiric-core-agent-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${METRICS_PORT_AGENT:-9091}:9091"]
     networks: [sentiric-net]
     restart: always
     depends_on: 
-      postgres: 
-        condition: service_healthy 
-      rabbitmq: 
-        condition: service_healthy
-      tts-gateway:
-        condition: service_healthy
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      tts-gateway: { condition: service_healthy }
 
   cdr-service:
-    container_name: sentiric-dev-cdr-service-1
-    build: { context: ../sentiric-cdr-service, args: { SERVICE_NAME: sentiric-cdr-service } }
+    image: ghcr.io/sentiric/sentiric-cdr-service:${TAG:-latest}
+    container_name: sentiric-core-cdr-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${CDR_SERVICE_PORT:-5004}:5004", "${METRICS_PORT_CDR:-9092}:9092"]
@@ -124,8 +121,8 @@ services:
     depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
 
   media-service:
-    container_name: sentiric-dev-media-service-1
-    build: { context: ../sentiric-media-service, args: { SERVICE_NAME: sentiric-media-service } }
+    image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
+    container_name: sentiric-core-media-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"]
@@ -134,8 +131,8 @@ services:
     depends_on: [user-service, dialplan-service]
 
   sip-signaling:
-    container_name: sentiric-dev-sip-signaling-1
-    build: { context: ../sentiric-sip-signaling-service, args: { SERVICE_NAME: sentiric-sip-signaling-service } }
+    image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
+    container_name: sentiric-core-sip-signaling-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -143,8 +140,8 @@ services:
     depends_on: { rabbitmq: { condition: service_healthy }, media-service: { condition: service_started } }
 
   sip-gateway:
-    container_name: sentiric-dev-sip-gateway-1
-    build: { context: ../sentiric-sip-gateway-service, args: { SERVICE_NAME: sentiric-sip-gateway-service } }
+    image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
+    container_name: sentiric-core-sip-gateway-1
     env_file: [".env.generated"]
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:${SIP_GATEWAY_LISTEN_PORT:-5060}/udp"]
     networks: [sentiric-net]
@@ -152,8 +149,8 @@ services:
     depends_on: { sip-signaling: { condition: service_started } }
 
   api-gateway:
-    container_name: sentiric-dev-api-gateway-1
-    build: { context: ../sentiric-api-gateway-service, args: { SERVICE_NAME: sentiric-api-gateway-service } }
+    image: ghcr.io/sentiric/sentiric-api-gateway-service:${TAG:-latest}
+    container_name: sentiric-core-api-gateway-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${API_GATEWAY_SERVICE_PORT:-8080}:8080"]
@@ -162,8 +159,8 @@ services:
     depends_on: [user-service, dialplan-service]
 
   connectors-service:
-    container_name: sentiric-dev-connectors-service-1
-    build: { context: ../sentiric-connectors-service }
+    image: ghcr.io/sentiric/sentiric-connectors-service:${TAG:-latest}
+    container_name: sentiric-core-connectors-service-1
     env_file: [".env.generated"]
     ports: ["${CONNECTOR_SERVICE_PORT:-5005}:5005"]
     networks: [sentiric-net]
@@ -171,8 +168,8 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
 
   task-service:
-    container_name: sentiric-dev-task-service-api-1
-    build: { context: ../sentiric-task-service }
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-core-task-service-api-1
     env_file: [".env.generated"]
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
     ports: ["${TASK_SERVICE_PORT:-5003}:5003"]
@@ -181,8 +178,8 @@ services:
     depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
 
   task-service-worker:
-    container_name: sentiric-dev-task-service-worker-1
-    build: { context: ../sentiric-task-service }
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-core-task-service-worker-1
     env_file: [".env.generated"]
     user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
@@ -191,19 +188,17 @@ services:
     depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
 
   llm-service:
-    container_name: sentiric-dev-llm-service-1
-    build: { context: ../sentiric-llm-service }
+    image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
+    container_name: sentiric-core-llm-service-1
     env_file: [".env.generated"]
     ports: ["${LLM_SERVICE_PORT:-7860}:7860"]
     networks: [sentiric-net]
     restart: always
-    depends_on:
-      agent-service:
-        condition: service_started
+    depends_on: { agent-service: { condition: service_started } }
 
   stt-service:
-    container_name: sentiric-dev-stt-service-1
-    build: { context: ../sentiric-stt-service }
+    image: ghcr.io/sentiric/sentiric-stt-service:${TAG:-latest}
+    container_name: sentiric-core-stt-service-1
     env_file: [".env.generated"]
     volumes: [stt-model-cache:/root/.cache]
     ports: ["${STT_SERVICE_PORT:-5001}:5001"]
@@ -213,21 +208,15 @@ services:
 
   # --- SES ORKESTRASYON KATMANI ---
   tts-gateway:
-    container_name: sentiric-dev-tts-gateway-1
-    build: 
-      context: ../sentiric-tts-gateway-service
-      args: 
-        SERVICE_NAME: sentiric-tts-gateway-service
+    image: ghcr.io/sentiric/sentiric-tts-gateway-service:${TAG:-latest}
+    container_name: sentiric-core-tts-gateway-1
     env_file: [".env.generated"]
-    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]    
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
     networks: [sentiric-net]
     restart: always
     depends_on:
-      # tts-coqui-service:
-      #   condition: service_healthy
-      tts-edge-service:
-        condition: service_healthy
+      tts-edge-service: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "50051"]
       interval: 10s
@@ -235,23 +224,9 @@ services:
       retries: 5
       start_period: 30s
 
-  # Bu servis devre dışı [ çok ağır ] bırakıldı daha sonra tekrar incelenecek 
-  # tts-coqui-service:
-  #   container_name: sentiric-dev-tts-coqui-1
-  #   build: { context: ../sentiric-tts-coqui-service }
-  #   env_file: [".env.generated"]
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 5m
-
   tts-edge-service:
-    container_name: sentiric-dev-tts-edge-1
-    build: { context: ../sentiric-tts-edge-service }
+    image: ghcr.io/sentiric/sentiric-tts-edge-service:${TAG:-latest}
+    container_name: sentiric-core-tts-edge-1
     env_file: [".env.generated"]
     ports: ["${TTS_EDGE_SERVICE_PORT:-5006}:5006"]
     networks: [sentiric-net]
@@ -262,10 +237,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
+      
   knowledge-service:
-    container_name: sentiric-dev-knowledge-service-1
-    build: { context: ../sentiric-knowledge-service }
+    image: ghcr.io/sentiric/sentiric-knowledge-service:${TAG:-latest}
+    container_name: sentiric-core-knowledge-service-1
     env_file: [".env.generated"]
     ports: ["${KNOWLEDGE_SERVICE_PORT:-50055}:50055"]
     volumes: ["./data:/app/data"]
@@ -274,17 +249,17 @@ services:
     depends_on: { postgres: { condition: service_healthy }, qdrant: { condition: service_started } }
 
   messaging-gateway:
-    container_name: sentiric-dev-messaging-gateway-1
-    build: { context: ../sentiric-messaging-gateway-service }
+    image: ghcr.io/sentiric/sentiric-messaging-gateway-service:${TAG:-latest}
+    container_name: sentiric-core-messaging-gateway-1
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy } }
-    
+
   dashboard-ui:
-    container_name: sentiric-dev-dashboard-ui-1
-    build: { context: ../sentiric-dashboard-ui }
+    image: ghcr.io/sentiric/sentiric-dashboard-ui:${TAG:-latest}
+    container_name: sentiric-core-dashboard-ui-1
     env_file: [".env.generated"]
     ports: ["${DASHBOARD_UI_PORT:-3000}:80"]
     networks: [sentiric-net]
@@ -292,8 +267,8 @@ services:
     depends_on: [api-gateway]
 
   web-agent-ui:
-    container_name: sentiric-dev-web-agent-ui-1
-    build: { context: ../sentiric-web-agent-ui }
+    image: ghcr.io/sentiric/sentiric-web-agent-ui:${TAG:-latest}
+    container_name: sentiric-core-web-agent-ui-1
     env_file: [".env.generated"]
     ports: ["${WEB_AGENT_UI_PORT:-3001}:80"]
     networks: [sentiric-net]
