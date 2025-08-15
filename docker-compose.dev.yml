@@ -283,7 +283,7 @@ services:
     networks: [sentiric-net]
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy } }
-
+    
   dashboard-ui:
     container_name: sentiric-dev-dashboard-ui-1
     build: { context: ../sentiric-dashboard-ui }
