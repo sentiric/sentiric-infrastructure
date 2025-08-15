@@ -31,7 +31,7 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:4.1.0-management-alpine # DÜZELTME: Versiyonu core ile aynı yapıyoruz (3.13 -> 4.1.0)
     container_name: sentiric-dev-rabbitmq-1
     env_file: [".env.generated"]
     ports: ["15672:15672"]
@@ -254,7 +254,9 @@ services:
     networks: [sentiric-net]
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      # DÜZELTME: Healthcheck portunu 5002'den 5006'ya düzeltiyoruz.
+      # Servisin kendi portunu kontrol etmesi gerekir.
+      test: ["CMD", "curl", "-f", "http://localhost:5006/health"]
       interval: 30s
       timeout: 10s
       retries: 3
