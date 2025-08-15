@@ -31,7 +31,7 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine # DÜZELTME: Daha kararlı bir versiyon kullanıyoruz
+    image: rabbitmq:3.13-management-alpine
     container_name: sentiric-dev-rabbitmq-1
     env_file: [".env.generated"]
     ports: ["15672:15672"]
@@ -250,7 +250,7 @@ services:
     container_name: sentiric-dev-tts-edge-1
     build: { context: ../sentiric-tts-edge-service }
     env_file: [".env.generated"]
-    ports: ["${TTS_EDGE_SERVICE_PORT:-5006}:5006"] # DÜZELTME: Benzersiz port ataması
+    ports: ["${TTS_EDGE_SERVICE_PORT:-5006}:5006"]
     networks: [sentiric-net]
     restart: always
     healthcheck:
@@ -273,8 +273,7 @@ services:
   messaging-gateway:
     container_name: sentiric-dev-messaging-gateway-1
     build: { context: ../sentiric-messaging-gateway-service }
-    # DÜZELTME: Başlangıçta kilit dosyasını sil
-    command: sh -c "rm -f /app/wweb_auth/SingletonLock && node dist/index.js"
+    # DÜZELTME: Kilit dosyası silme mantığı artık Dockerfile'da olduğu için bu satırı siliyoruz.
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]
