@@ -218,6 +218,7 @@ services:
       args: 
         SERVICE_NAME: sentiric-tts-gateway-service
     env_file: [".env.generated"]
+    volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]    
     ports: ["${TTS_GATEWAY_PORT:-50051}:50051"]
     networks: [sentiric-net]
     restart: always
