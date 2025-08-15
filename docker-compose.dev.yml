@@ -275,7 +275,8 @@ services:
   messaging-gateway:
     container_name: sentiric-dev-messaging-gateway-1
     build: { context: ../sentiric-messaging-gateway-service }
-    # DÜZELTME: Kilit dosyası silme mantığı artık Dockerfile'da olduğu için bu satırı siliyoruz.
+    # DÜZELTME: Bu 'command' satırını tamamen siliyoruz.
+    # Sorumluluk artık messaging-gateway'in kendi Dockerfile'ında.
     env_file: [".env.generated"]
     volumes: [whatsapp_session:/app/wweb_auth]
     networks: [sentiric-net]
