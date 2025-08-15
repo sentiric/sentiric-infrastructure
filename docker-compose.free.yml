@@ -63,7 +63,7 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { postgres: { condition: service_healthy } }
+    # depends_on: { postgres: { condition: service_healthy } }
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
@@ -72,7 +72,7 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { postgres: { condition: service_healthy } }
+    # depends_on: { postgres: { condition: service_healthy } }
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
@@ -121,8 +121,8 @@ services:
     networks: [sentiric-net]
     restart: always
     depends_on: 
-      postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # postgres: { condition: service_healthy }
+      # rabbitmq: { condition: service_healthy }
       tts-gateway: { condition: service_healthy }
 
   llm-service:
@@ -140,7 +140,7 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { rabbitmq: { condition: service_healthy }, media-service: { condition: service_started } }
+    # depends_on: { rabbitmq: { condition: service_healthy }, media-service: { condition: service_started } }
 
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
