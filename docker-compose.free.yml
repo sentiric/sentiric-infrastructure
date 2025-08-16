@@ -1,61 +1,19 @@
 # docker-compose.free.yml
+# SENTIRIC - BEDAVA KATMAN (FREE TIER)
+# Bu profil, veri katmanı için yönetilen bulut servislerini (Neon, CloudAMQP, Upstash) kullanır
+# ve sadece gerekli uygulama servislerini çalıştırır.
 
 networks:
   sentiric-net:
     name: ${NETWORK_NAME:-sentiric-net}
     driver: bridge
 
-volumes:
-  postgres_data:
-  rabbitmq_data:
-  redis_data:
-
 services:
-  # --- ZORUNLU VERİ KATMANI ---
-  # neon.teach
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: sentiric-free-postgres-1
-  #   env_file: [".env.generated"]
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ${CONFIG_REPO_PATH}/postgres-init:/docker-entrypoint-initdb.d
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  # --- VERİ KATMANI (YÖNETİLEN SERVİSLER KULLANILDIĞI İÇİN YORUM SATIRI) ---
+  # .env.generated dosyasındaki POSTGRES_URL, RABBITMQ_URL, REDIS_URL
+  # değişkenleri buluttaki adresleri göstermelidir.
 
-  # cloudamqp
-  # rabbitmq:
-  #   image: rabbitmq:4.1.0-management-alpine
-  #   container_name: sentiric-free-rabbitmq-1
-  #   env_file: [".env.generated"]
-  #   volumes: [rabbitmq_data:/var/lib/rabbitmq/]
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   healthcheck:
-  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-
-  # upstash   
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: sentiric-free-redis-1
-  #   volumes: [redis_data:/data]
-  #   networks: [sentiric-net]
-  #   restart: always
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # --- ÇEKİRDEK UYGULAMA SERVİSLERİ (ÇAĞRI AKIŞI İÇİN ZORUNLU) ---
+  # --- ÇEKİRDEK UYGULAMA SERVİSLERİ ---
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
     container_name: sentiric-free-user-service-1
@@ -63,7 +21,6 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    # depends_on: { postgres: { condition: service_healthy } }
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
@@ -72,7 +29,6 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    # depends_on: { postgres: { condition: service_healthy } }
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
@@ -121,9 +77,10 @@ services:
     networks: [sentiric-net]
     restart: always
     depends_on: 
-      # postgres: { condition: service_healthy }
-      # rabbitmq: { condition: service_healthy }
-      tts-gateway: { condition: service_healthy }
+      - tts-gateway
+      # DİKKAT: Bağımlılıkları bu şekilde liste olarak vermek daha güvenilirdir.
+      # Servisin başlaması için tts-gateway'in sağlıklı olmasını bekleyecek.
+      - llm-service
 
   llm-service:
     image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
@@ -131,7 +88,6 @@ services:
     env_file: [".env.generated"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { agent-service: { condition: service_started } }
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
@@ -140,7 +96,8 @@ services:
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
     restart: always
-    # depends_on: { rabbitmq: { condition: service_healthy }, media-service: { condition: service_started } }
+    depends_on:
+      - media-service
 
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
@@ -149,4 +106,5 @@ services:
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:${SIP_GATEWAY_LISTEN_PORT:-5060}/udp"]
     networks: [sentiric-net]
     restart: always
-    depends_on: { sip-signaling: { condition: service_started } }
+    depends_on:
+      - sip-signaling
