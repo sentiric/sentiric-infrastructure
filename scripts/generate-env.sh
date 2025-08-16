@@ -89,7 +89,7 @@ BEGIN {
     echo ""
     echo "# Dynamically added by Orchestrator"
     DETECTED_IP=$(hostname -I | awk '{print $1}' || echo "127.0.0.1")
-    echo "PUBLIC_IP=${DETECTED_IP}"
+    echo "DETECTED_IP=${DETECTED_IP}"
     echo "TAG=${TAG:-latest}"
     echo "CONFIG_REPO_PATH=../sentiric-config"
 } >> "$OUTPUT_FILE"
