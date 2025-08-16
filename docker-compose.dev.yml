@@ -170,7 +170,7 @@ services:
     restart: always
     depends_on: { postgres: { condition: service_healthy } }
 
-  task-service:
+  task-service-api:
     container_name: sentiric-dev-task-service-api-1
     build: { context: ../sentiric-task-service }
     env_file: [".env.generated"]
@@ -189,6 +189,15 @@ services:
     networks: [sentiric-net]
     restart: always
     depends_on: { rabbitmq: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  task-service-beat:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-dev-task-service-beat-1
+    env_file: [".env.generated"]
+    user: "sentiric_user"
+    command: ["celery", "-A", "app.core.celery_app", "beat", "-l", "info"]
+    networks: [sentiric-net]
+    restart: always  
 
   llm-service:
     container_name: sentiric-dev-llm-service-1

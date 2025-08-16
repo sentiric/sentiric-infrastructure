@@ -13,6 +13,14 @@ services:
   # .env.generated dosyasındaki POSTGRES_URL, RABBITMQ_URL, REDIS_URL
   # değişkenleri buluttaki adresleri göstermelidir.
 
+  flower:
+    image: mher/flower
+    container_name: sentiric-free-flower-1
+    env_file: [".env.generated"]
+    ports: ["${FLOWER_PORT:-5555}:5555"]
+    networks: [sentiric-net]
+    restart: always     
+    
   # --- ÇEKİRDEK UYGULAMA SERVİSLERİ ---
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
@@ -108,3 +116,32 @@ services:
     restart: always
     depends_on:
       - sip-signaling
+
+  task-service-api:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-free-task-service-api-1
+    env_file: [".env.generated"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
+    networks: [sentiric-net]
+    restart: always
+
+
+  task-service-worker:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-free-task-service-worker-1
+    env_file: [".env.generated"]
+    user: "sentiric_user"
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
+    networks: [sentiric-net]
+    restart: always
+
+  task-service-beat:
+    image: ghcr.io/sentiric/sentiric-task-service:${TAG:-latest}
+    container_name: sentiric-free-task-service-beat-1
+    env_file: [".env.generated"]
+    user: "sentiric_user"
+    command: ["celery", "-A", "app.core.celery_app", "beat", "-l", "info"]
+    networks: [sentiric-net]
+    restart: always    
+
+  

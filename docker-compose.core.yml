@@ -9,12 +9,13 @@ volumes:
   postgres_data:
   rabbitmq_data:
   redis_data:
+  qdrant_data:
 
 services:
   # --- ZORUNLU VERİ KATMANI ---
   postgres:
     image: postgres:16-alpine
-    container_name: sentiric-free-postgres-1
+    container_name: sentiric-core-postgres-1
     env_file: [".env.generated"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -29,7 +30,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
-    container_name: sentiric-free-rabbitmq-1
+    container_name: sentiric-core-rabbitmq-1
     env_file: [".env.generated"]
     volumes: [rabbitmq_data:/var/lib/rabbitmq/]
     networks: [sentiric-net]
@@ -42,7 +43,7 @@ services:
       
   redis:
     image: redis:7-alpine
-    container_name: sentiric-free-redis-1
+    container_name: sentiric-core-redis-1
     volumes: [redis_data:/data]
     networks: [sentiric-net]
     restart: always
@@ -52,10 +53,31 @@ services:
       timeout: 5s
       retries: 5
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: sentiric-core-qdrant-1
+    ports: ["${VECTOR_DB_PORT:-6333}:6333"]
+    volumes: [qdrant_data:/qdrant/storage]
+    networks: [sentiric-net]
+    restart: always      
+
+  flower:
+      image: mher/flower
+      container_name: sentiric-core-flower-1
+      env_file: [".env.generated"]
+      ports: ["${FLOWER_PORT:-5555}:5555"]
+      networks: [sentiric-net]
+      restart: always
+      depends_on:
+        rabbitmq:
+          condition: service_healthy
+        task-service-worker:
+          condition: service_started      
+
   # --- ÇEKİRDEK UYGULAMA SERVİSLERİ (ÇAĞRI AKIŞI İÇİN ZORUNLU) ---
   user-service:
     image: ghcr.io/sentiric/sentiric-user-service:${TAG:-latest}
-    container_name: sentiric-free-user-service-1
+    container_name: sentiric-core-user-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -64,7 +86,7 @@ services:
 
   dialplan-service:
     image: ghcr.io/sentiric/sentiric-dialplan-service:${TAG:-latest}
-    container_name: sentiric-free-dialplan-service-1
+    container_name: sentiric-core-dialplan-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -73,7 +95,7 @@ services:
 
   media-service:
     image: ghcr.io/sentiric/sentiric-media-service:${TAG:-latest}
-    container_name: sentiric-free-media-service-1
+    container_name: sentiric-core-media-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     ports: ["${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}:${RTP_SERVICE_PORT_MIN}-${RTP_SERVICE_PORT_MAX}/udp"]
@@ -83,7 +105,7 @@ services:
 
   tts-edge-service:
     image: ghcr.io/sentiric/sentiric-tts-edge-service:${TAG:-latest}
-    container_name: sentiric-free-tts-edge-1
+    container_name: sentiric-core-tts-edge-1
     env_file: [".env.generated"]
     networks: [sentiric-net]
     restart: always
@@ -96,7 +118,7 @@ services:
 
   tts-gateway:
     image: ghcr.io/sentiric/sentiric-tts-gateway-service:${TAG:-latest}
-    container_name: sentiric-free-tts-gateway-1
+    container_name: sentiric-core-tts-gateway-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -112,7 +134,7 @@ services:
 
   agent-service:
     image: ghcr.io/sentiric/sentiric-agent-service:${TAG:-latest}
-    container_name: sentiric-free-agent-service-1
+    container_name: sentiric-core-agent-service-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -124,7 +146,7 @@ services:
 
   llm-service:
     image: ghcr.io/sentiric/sentiric-llm-service:${TAG:-latest}
-    container_name: sentiric-free-llm-service-1
+    container_name: sentiric-core-llm-service-1
     env_file: [".env.generated"]
     networks: [sentiric-net]
     restart: always
@@ -132,7 +154,7 @@ services:
 
   sip-signaling:
     image: ghcr.io/sentiric/sentiric-sip-signaling-service:${TAG:-latest}
-    container_name: sentiric-free-sip-signaling-1
+    container_name: sentiric-core-sip-signaling-1
     env_file: [".env.generated"]
     volumes: ["${CONFIG_REPO_PATH}/tls/certs:/etc/sentiric/tls:ro"]
     networks: [sentiric-net]
@@ -141,7 +163,7 @@ services:
 
   sip-gateway:
     image: ghcr.io/sentiric/sentiric-sip-gateway-service:${TAG:-latest}
-    container_name: sentiric-free-sip-gateway-1
+    container_name: sentiric-core-sip-gateway-1
     env_file: [".env.generated"]
     ports: ["${SIP_GATEWAY_SERVICE_PORT:-5060}:${SIP_GATEWAY_LISTEN_PORT:-5060}/udp"]
     networks: [sentiric-net]
