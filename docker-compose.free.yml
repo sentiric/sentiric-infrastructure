@@ -131,7 +131,7 @@ services:
     container_name: sentiric-free-task-service-worker-1
     env_file: [".env.generated"]
     user: "sentiric_user"
-    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info", "--concurrency=2"]
     networks: [sentiric-net]
     restart: always
 
