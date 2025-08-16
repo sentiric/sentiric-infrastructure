@@ -148,7 +148,8 @@ services:
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     container_name: sentiric-free-uptime-kuma
-    env_file: [".env.generated"]
+    environment:
+      NODE_ENV: production
     restart: always
     ports:
       - "3001:3001"  # Uptime Kuma arayüzü için
